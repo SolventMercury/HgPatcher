@@ -1,0 +1,4 @@
+spr_queenscreen {
+	smooth : True
+}
+

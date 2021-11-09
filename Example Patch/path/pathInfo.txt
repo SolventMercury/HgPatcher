@@ -1,0 +1,4 @@
+path_hacker {
+	precision : 7
+}
+

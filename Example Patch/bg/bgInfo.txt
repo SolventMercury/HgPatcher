@@ -1,0 +1,5 @@
+bg_building_store_tileset {
+	output_border_x : 5
+	output_border_y : 5
+}
+

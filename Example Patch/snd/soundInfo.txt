@@ -1,0 +1,4 @@
+snd_creepylaugh {
+	volume : 3.89
+}
+

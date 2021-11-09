@@ -1,0 +1,5 @@
+fnt_tinynoelle {
+	bold   : True
+	italic : True
+}
+
