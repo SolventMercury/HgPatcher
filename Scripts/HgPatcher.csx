@@ -1680,166 +1680,168 @@ Dictionary<string, SpriteInfo> ImportSpriteInfo(string spriteInfoPath, bool forc
 	SpriteInfo currentSpriteInfo = null;
 	bool processingSprite = false;
 	Dictionary<string, SpriteInfo> spriteInfoDict = new Dictionary<string, SpriteInfo>();
-	foreach (string lineIn in System.IO.File.ReadLines(spriteInfoPath)) {
-		string line = StripOpeningWhitespace(lineIn);
-		if (line.Length < 1) {
-			continue;
-		}
-		// Ignore comments
-		if (line[0] == '#') {
-			continue;
-		}
-		// Handle sprite declarations
-		if (line.Contains('{')) {
-			processingSprite = true;
-			int i = 0;
-			currentSpriteName = StripClosingWhitespace(line.Split("{")[0]);
-			currentSpriteInfo = new SpriteInfo(currentSpriteName);
-			// Override defaults if sprite already exists
-			UndertaleSprite sprite = Data.Sprites.ByName(currentSpriteName);
-			if (sprite != null) {               
-				currentSpriteInfo.SizeX           = (int)sprite.Width;
-				currentSpriteInfo.SizeY           = (int)sprite.Height;
-				currentSpriteInfo.MarginLeft      = sprite.MarginLeft;
-				currentSpriteInfo.MarginRight     = sprite.MarginRight;
-				currentSpriteInfo.MarginBottom    = sprite.MarginBottom;
-				currentSpriteInfo.MarginTop       = sprite.MarginTop;
-				currentSpriteInfo.Transparent     = sprite.Transparent;
-				currentSpriteInfo.Smooth          = sprite.Smooth;
-				currentSpriteInfo.Preload         = sprite.Preload;
-				currentSpriteInfo.BoundingBoxMode = (int)sprite.BBoxMode;
-				currentSpriteInfo.SepMasks        = sprite.SepMasks;
-				currentSpriteInfo.OriginX         = sprite.OriginX;
-				currentSpriteInfo.OriginY         = sprite.OriginY;
-				currentSpriteInfo.Type            = sprite.SSpriteType;
-				currentSpriteInfo.PlaybackSpeed   = sprite.GMS2PlaybackSpeed;
-				currentSpriteInfo.Playback        = sprite.GMS2PlaybackSpeedType;
+	if (File.Exists(spriteInfoPath)) {
+		foreach (string lineIn in System.IO.File.ReadLines(spriteInfoPath)) {
+			string line = StripOpeningWhitespace(lineIn);
+			if (line.Length < 1) {
+				continue;
 			}
-			
-		// Handle sprite definition end
-		} else if (line.Contains('}')) {
-			processingSprite = false;
-			UndertaleSprite sprite = Data.Sprites.ByName(currentSpriteName);
-			if (sprite == null) {
-				if (currentSpriteInfo.SizeX <= 0 || currentSpriteInfo.SizeY <= 0) {
-					throw new Exception(String.Format("ERROR: New sprite {0} was declared, but no size was found.", currentSpriteName));
+			// Ignore comments
+			if (line[0] == '#') {
+				continue;
+			}
+			// Handle sprite declarations
+			if (line.Contains('{')) {
+				processingSprite = true;
+				int i = 0;
+				currentSpriteName = StripClosingWhitespace(line.Split("{")[0]);
+				currentSpriteInfo = new SpriteInfo(currentSpriteName);
+				// Override defaults if sprite already exists
+				UndertaleSprite sprite = Data.Sprites.ByName(currentSpriteName);
+				if (sprite != null) {               
+					currentSpriteInfo.SizeX           = (int)sprite.Width;
+					currentSpriteInfo.SizeY           = (int)sprite.Height;
+					currentSpriteInfo.MarginLeft      = sprite.MarginLeft;
+					currentSpriteInfo.MarginRight     = sprite.MarginRight;
+					currentSpriteInfo.MarginBottom    = sprite.MarginBottom;
+					currentSpriteInfo.MarginTop       = sprite.MarginTop;
+					currentSpriteInfo.Transparent     = sprite.Transparent;
+					currentSpriteInfo.Smooth          = sprite.Smooth;
+					currentSpriteInfo.Preload         = sprite.Preload;
+					currentSpriteInfo.BoundingBoxMode = (int)sprite.BBoxMode;
+					currentSpriteInfo.SepMasks        = sprite.SepMasks;
+					currentSpriteInfo.OriginX         = sprite.OriginX;
+					currentSpriteInfo.OriginY         = sprite.OriginY;
+					currentSpriteInfo.Type            = sprite.SSpriteType;
+					currentSpriteInfo.PlaybackSpeed   = sprite.GMS2PlaybackSpeed;
+					currentSpriteInfo.Playback        = sprite.GMS2PlaybackSpeedType;
 				}
-				UndertaleString spriteUTString = Data.Strings.MakeString(currentSpriteName);
-                UndertaleSprite newSprite = new UndertaleSprite();
 				
-				// Sprite does not exist in original
-				// Because a whopping 0 pixels will be replaced,
-				// It technically can fit in the original.
-				currentSpriteInfo.canOriginalFramesFitInPlace = true;
-				currentSpriteInfo.originalNumFrames = 0;
-				currentSpriteInfo.finalNumFrames = CountTotalFramesForNewSprite(spritePath, currentSpriteName);
-				
-                newSprite.Name                  = spriteUTString;
-                newSprite.Width                 = (uint)currentSpriteInfo.SizeX;
-                newSprite.Height                = (uint)currentSpriteInfo.SizeY;
-                newSprite.MarginLeft            = currentSpriteInfo.MarginLeft;
-                newSprite.MarginRight           = currentSpriteInfo.MarginRight;
-                newSprite.MarginTop             = currentSpriteInfo.MarginTop;
-                newSprite.MarginBottom          = currentSpriteInfo.MarginBottom;
-                newSprite.OriginX               = currentSpriteInfo.OriginX;
-                newSprite.OriginY               = currentSpriteInfo.OriginY;
-                newSprite.Smooth                = currentSpriteInfo.Smooth;
-                newSprite.Transparent           = currentSpriteInfo.Transparent;
-                newSprite.Preload               = currentSpriteInfo.Preload;
-                newSprite.SSpriteType           = currentSpriteInfo.Type;
-                newSprite.BBoxMode              = (uint)currentSpriteInfo.BoundingBoxMode;
-                newSprite.SepMasks              = currentSpriteInfo.SepMasks;
-                newSprite.GMS2PlaybackSpeed     = currentSpriteInfo.PlaybackSpeed;
-                newSprite.GMS2PlaybackSpeedType = currentSpriteInfo.Playback;
-				
-				newSprite.SVersion = (uint)sVersion;
-				if (sVersion >= 2) {
-					newSprite.IsSpecialType = true;
+			// Handle sprite definition end
+			} else if (line.Contains('}')) {
+				processingSprite = false;
+				UndertaleSprite sprite = Data.Sprites.ByName(currentSpriteName);
+				if (sprite == null) {
+					if (currentSpriteInfo.SizeX <= 0 || currentSpriteInfo.SizeY <= 0) {
+						throw new Exception(String.Format("ERROR: New sprite {0} was declared, but no size was found.", currentSpriteName));
+					}
+					UndertaleString spriteUTString = Data.Strings.MakeString(currentSpriteName);
+					UndertaleSprite newSprite = new UndertaleSprite();
+					
+					// Sprite does not exist in original
+					// Because a whopping 0 pixels will be replaced,
+					// It technically can fit in the original.
+					currentSpriteInfo.canOriginalFramesFitInPlace = true;
+					currentSpriteInfo.originalNumFrames = 0;
+					currentSpriteInfo.finalNumFrames = CountTotalFramesForNewSprite(spritePath, currentSpriteName);
+					
+					newSprite.Name                  = spriteUTString;
+					newSprite.Width                 = (uint)currentSpriteInfo.SizeX;
+					newSprite.Height                = (uint)currentSpriteInfo.SizeY;
+					newSprite.MarginLeft            = currentSpriteInfo.MarginLeft;
+					newSprite.MarginRight           = currentSpriteInfo.MarginRight;
+					newSprite.MarginTop             = currentSpriteInfo.MarginTop;
+					newSprite.MarginBottom          = currentSpriteInfo.MarginBottom;
+					newSprite.OriginX               = currentSpriteInfo.OriginX;
+					newSprite.OriginY               = currentSpriteInfo.OriginY;
+					newSprite.Smooth                = currentSpriteInfo.Smooth;
+					newSprite.Transparent           = currentSpriteInfo.Transparent;
+					newSprite.Preload               = currentSpriteInfo.Preload;
+					newSprite.SSpriteType           = currentSpriteInfo.Type;
+					newSprite.BBoxMode              = (uint)currentSpriteInfo.BoundingBoxMode;
+					newSprite.SepMasks              = currentSpriteInfo.SepMasks;
+					newSprite.GMS2PlaybackSpeed     = currentSpriteInfo.PlaybackSpeed;
+					newSprite.GMS2PlaybackSpeedType = currentSpriteInfo.Playback;
+					
+					newSprite.SVersion = (uint)sVersion;
+					if (sVersion >= 2) {
+						newSprite.IsSpecialType = true;
+					} else {
+						newSprite.IsSpecialType = false;
+					}
+					
+					Data.Sprites.Add(newSprite);
 				} else {
-					newSprite.IsSpecialType = false;
-				}
-				
-				Data.Sprites.Add(newSprite);
-			} else {
-				if (currentSpriteInfo.SizeX != 0 || currentSpriteInfo.SizeY != 0) {
-					if (currentSpriteInfo.SizeX != sprite.Textures[0].Texture.TargetWidth || currentSpriteInfo.SizeY != sprite.Textures[0].Texture.TargetHeight) {
-						if (forceMatchingSpriteSize) {
-							throw new Exception(String.Format("ERROR: Patch set config option forceMatchingSpriteSize to true, but sprite size given for {0} doesn't match the size of the original sprite!", currentSpriteName));
-						}
-						if (!EnsureAllFramesReplaced(spritePath, currentSpriteName, sprite.Textures.Count, currentSpriteInfo.SizeX, currentSpriteInfo.SizeY)) {
-							throw new Exception(String.Format("ERROR: New sprite {0} has differing dimensions to the original, but did not replace every frame.", currentSpriteName));
+					if (currentSpriteInfo.SizeX != 0 || currentSpriteInfo.SizeY != 0) {
+						if (currentSpriteInfo.SizeX != sprite.Textures[0].Texture.TargetWidth || currentSpriteInfo.SizeY != sprite.Textures[0].Texture.TargetHeight) {
+							if (forceMatchingSpriteSize) {
+								throw new Exception(String.Format("ERROR: Patch set config option forceMatchingSpriteSize to true, but sprite size given for {0} doesn't match the size of the original sprite!", currentSpriteName));
+							}
+							if (!EnsureAllFramesReplaced(spritePath, currentSpriteName, sprite.Textures.Count, currentSpriteInfo.SizeX, currentSpriteInfo.SizeY)) {
+								throw new Exception(String.Format("ERROR: New sprite {0} has differing dimensions to the original, but did not replace every frame.", currentSpriteName));
+							}
 						}
 					}
+					
+					currentSpriteInfo.canOriginalFramesFitInPlace = (currentSpriteInfo.SizeX <= sprite.Width && currentSpriteInfo.SizeY <= sprite.Height);
+					currentSpriteInfo.originalNumFrames = sprite.Textures.Count;
+					currentSpriteInfo.finalNumFrames = CountTotalFramesAfterPatch(spritePath, sprite);
+					
+					sprite.Width                 = (uint)currentSpriteInfo.SizeX;
+					sprite.Height                = (uint)currentSpriteInfo.SizeY;
+					sprite.MarginLeft            = currentSpriteInfo.MarginLeft;
+					sprite.MarginRight           = currentSpriteInfo.MarginRight;
+					sprite.MarginTop             = currentSpriteInfo.MarginTop;
+					sprite.MarginBottom          = currentSpriteInfo.MarginBottom;
+					sprite.OriginX               = currentSpriteInfo.OriginX;
+					sprite.OriginY               = currentSpriteInfo.OriginY;
+					sprite.Smooth                = currentSpriteInfo.Smooth;
+					sprite.Transparent           = currentSpriteInfo.Transparent;
+					sprite.Preload               = currentSpriteInfo.Preload;
+					sprite.SSpriteType           = currentSpriteInfo.Type;
+					sprite.BBoxMode              = (uint)currentSpriteInfo.BoundingBoxMode;
+					sprite.SepMasks              = currentSpriteInfo.SepMasks;
+					sprite.GMS2PlaybackSpeed     = currentSpriteInfo.PlaybackSpeed;
+					sprite.GMS2PlaybackSpeedType = currentSpriteInfo.Playback;
 				}
+				// Add to dict
+				spriteInfoDict.Add(currentSpriteName, currentSpriteInfo);
+				continue;
+			// Handle sprite parameters
+			} else if (line.Contains(':')) {
+				string paramName = StripClosingWhitespace(StripOpeningWhitespace(line.Split(":")[0]));
+				string paramVal = StripClosingWhitespace(StripOpeningWhitespace(line.Split(":")[1]));
 				
-				currentSpriteInfo.canOriginalFramesFitInPlace = (currentSpriteInfo.SizeX <= sprite.Width && currentSpriteInfo.SizeY <= sprite.Height);
-				currentSpriteInfo.originalNumFrames = sprite.Textures.Count;
-				currentSpriteInfo.finalNumFrames = CountTotalFramesAfterPatch(spritePath, sprite);
-				
-				sprite.Width                 = (uint)currentSpriteInfo.SizeX;
-				sprite.Height                = (uint)currentSpriteInfo.SizeY;
-				sprite.MarginLeft            = currentSpriteInfo.MarginLeft;
-				sprite.MarginRight           = currentSpriteInfo.MarginRight;
-				sprite.MarginTop             = currentSpriteInfo.MarginTop;
-				sprite.MarginBottom          = currentSpriteInfo.MarginBottom;
-				sprite.OriginX               = currentSpriteInfo.OriginX;
-				sprite.OriginY               = currentSpriteInfo.OriginY;
-				sprite.Smooth                = currentSpriteInfo.Smooth;
-				sprite.Transparent           = currentSpriteInfo.Transparent;
-				sprite.Preload               = currentSpriteInfo.Preload;
-				sprite.SSpriteType           = currentSpriteInfo.Type;
-				sprite.BBoxMode              = (uint)currentSpriteInfo.BoundingBoxMode;
-				sprite.SepMasks              = currentSpriteInfo.SepMasks;
-				sprite.GMS2PlaybackSpeed     = currentSpriteInfo.PlaybackSpeed;
-				sprite.GMS2PlaybackSpeedType = currentSpriteInfo.Playback;
-			}
-			// Add to dict
-			spriteInfoDict.Add(currentSpriteName, currentSpriteInfo);
-			continue;
-		// Handle sprite parameters
-		} else if (line.Contains(':')) {
-			string paramName = StripClosingWhitespace(StripOpeningWhitespace(line.Split(":")[0]));
-			string paramVal = StripClosingWhitespace(StripOpeningWhitespace(line.Split(":")[1]));
-			
-			if (paramName.Equals("size_x")) {
-				currentSpriteInfo.SizeX = Int32.Parse(paramVal);
-			} else if (paramName.Equals("size_y")) {
-				currentSpriteInfo.SizeY = Int32.Parse(paramVal);
-			} else if (paramName.Equals("margin_left")) {
-				currentSpriteInfo.MarginLeft = Int32.Parse(paramVal);
-			} else if (paramName.Equals("margin_right")) {
-				currentSpriteInfo.MarginRight = Int32.Parse(paramVal);
-			} else if (paramName.Equals("margin_bottom")) {
-				currentSpriteInfo.MarginBottom = Int32.Parse(paramVal);
-			} else if (paramName.Equals("margin_top")) {
-				currentSpriteInfo.MarginTop = Int32.Parse(paramVal);
-			} else if (paramName.Equals("transparent")) {
-				currentSpriteInfo.Transparent = Boolean.Parse(paramVal);
-			} else if (paramName.Equals("smooth")) {
-				currentSpriteInfo.Smooth = Boolean.Parse(paramVal);
-			} else if (paramName.Equals("preload")) {
-				currentSpriteInfo.Preload = Boolean.Parse(paramVal);
-			} else if (paramName.Equals("bounding_box_mode")) {
-				currentSpriteInfo.BoundingBoxMode = Int32.Parse(paramVal);
-			} else if (paramName.Equals("sep_masks")) {
-				currentSpriteInfo.SepMasks = (SepMaskType) Enum.Parse(typeof(SepMaskType), paramVal, true);
-			} else if (paramName.Equals("origin_x")) {
-				currentSpriteInfo.OriginX = Int32.Parse(paramVal);
-			} else if (paramName.Equals("origin_y")) {
-				currentSpriteInfo.OriginY = Int32.Parse(paramVal);
-			} else if (paramName.Equals("playback_speed")) {
-				currentSpriteInfo.PlaybackSpeed = Single.Parse(paramVal);
-			} else if (paramName.Equals("playback")) {
-				currentSpriteInfo.Playback = (AnimSpeedType) Enum.Parse(typeof(AnimSpeedType), paramVal, true);
+				if (paramName.Equals("size_x")) {
+					currentSpriteInfo.SizeX = Int32.Parse(paramVal);
+				} else if (paramName.Equals("size_y")) {
+					currentSpriteInfo.SizeY = Int32.Parse(paramVal);
+				} else if (paramName.Equals("margin_left")) {
+					currentSpriteInfo.MarginLeft = Int32.Parse(paramVal);
+				} else if (paramName.Equals("margin_right")) {
+					currentSpriteInfo.MarginRight = Int32.Parse(paramVal);
+				} else if (paramName.Equals("margin_bottom")) {
+					currentSpriteInfo.MarginBottom = Int32.Parse(paramVal);
+				} else if (paramName.Equals("margin_top")) {
+					currentSpriteInfo.MarginTop = Int32.Parse(paramVal);
+				} else if (paramName.Equals("transparent")) {
+					currentSpriteInfo.Transparent = Boolean.Parse(paramVal);
+				} else if (paramName.Equals("smooth")) {
+					currentSpriteInfo.Smooth = Boolean.Parse(paramVal);
+				} else if (paramName.Equals("preload")) {
+					currentSpriteInfo.Preload = Boolean.Parse(paramVal);
+				} else if (paramName.Equals("bounding_box_mode")) {
+					currentSpriteInfo.BoundingBoxMode = Int32.Parse(paramVal);
+				} else if (paramName.Equals("sep_masks")) {
+					currentSpriteInfo.SepMasks = (SepMaskType) Enum.Parse(typeof(SepMaskType), paramVal, true);
+				} else if (paramName.Equals("origin_x")) {
+					currentSpriteInfo.OriginX = Int32.Parse(paramVal);
+				} else if (paramName.Equals("origin_y")) {
+					currentSpriteInfo.OriginY = Int32.Parse(paramVal);
+				} else if (paramName.Equals("playback_speed")) {
+					currentSpriteInfo.PlaybackSpeed = Single.Parse(paramVal);
+				} else if (paramName.Equals("playback")) {
+					currentSpriteInfo.Playback = (AnimSpeedType) Enum.Parse(typeof(AnimSpeedType), paramVal, true);
+				} else {
+					throw new Exception(String.Format("ERROR: Parameter '{0}' was declared, but '{0}' is not a valid sprite parameter.", paramName));
+				}
+			// Ignore empty lines
 			} else {
-				throw new Exception(String.Format("ERROR: Parameter '{0}' was declared, but '{0}' is not a valid sprite parameter.", paramName));
+				continue;
 			}
-		// Ignore empty lines
-		} else {
-			continue;
 		}
 	}
-
+		
 	// Now go through all .png files in our sprite directory to supplement our SpriteInfo dict, for completeness' sake.
 	string[] spriteFiles = Directory.GetFiles(spritePath, "*.png");
 	foreach (string spriteFile in spriteFiles) {
@@ -2275,89 +2277,91 @@ void ImportBackgroundInfo(string bgInfoPath, bool forceMatchingSpriteSize) {
 	BackgroundInfo currentBgInfo = null;
 	
 	// Import data from bgInfo.txt first.
-	foreach (string lineIn in System.IO.File.ReadLines(bgInfoPath)) {
-		string line = StripOpeningWhitespace(lineIn);
-		if (line.Length < 1) {
-			continue;
-		}
-		// Ignore comments
-		if (line[0] == '#') {
-			continue;
-		}
-		// Handle bg declarations
-		if (line.Contains('{')) {
-			currentBgName = StripClosingWhitespace(line.Split("{")[0]);
-			currentBgInfo = new BackgroundInfo(currentBgName);
-			// Override defaults if bg already exists
-			UndertaleBackground bg = Data.Backgrounds.ByName(currentBgName);
-			if (bg != null) {               
-				currentBgInfo.Transparent   = bg.Transparent;
-				currentBgInfo.Smooth        = bg.Smooth;
-				currentBgInfo.Preload       = bg.Preload;
-				currentBgInfo.TileWidth     = bg.GMS2TileWidth;
-				currentBgInfo.TileHeight    = bg.GMS2TileHeight;
-				currentBgInfo.OutputBorderX = bg.GMS2OutputBorderX;
-				currentBgInfo.OutputBorderY = bg.GMS2OutputBorderY;
-				currentBgInfo.TileColumns   = bg.GMS2TileColumns;
-				currentBgInfo.TileCount     = bg.GMS2TileCount;
-				currentBgInfo.FrameLength   = bg.GMS2FrameLength;
+	if (File.Exists(bgInfoPath)) {
+		foreach (string lineIn in System.IO.File.ReadLines(bgInfoPath)) {
+			string line = StripOpeningWhitespace(lineIn);
+			if (line.Length < 1) {
+				continue;
 			}
-			continue;
-		// Handle bg definition end
-		} else if (line.Contains('}')) {
-			UndertaleBackground bg = Data.Backgrounds.ByName(currentBgName);
-			if (bg == null) {
-				UndertaleString bgUTString = Data.Strings.MakeString(currentBgName);
-				bg = new UndertaleBackground();
-				bg.Name = bgUTString;
-				Data.Backgrounds.Add(bg);
+			// Ignore comments
+			if (line[0] == '#') {
+				continue;
 			}
-			bg.Transparent       = currentBgInfo.Transparent;
-			bg.Smooth            = currentBgInfo.Smooth;
-			bg.Preload           = currentBgInfo.Preload;
-			bg.GMS2TileWidth     = currentBgInfo.TileWidth;
-			bg.GMS2TileHeight    = currentBgInfo.TileHeight;
-			bg.GMS2OutputBorderX = currentBgInfo.OutputBorderX;
-			bg.GMS2OutputBorderY = currentBgInfo.OutputBorderY;
-			bg.GMS2TileColumns   = currentBgInfo.TileColumns;
-			bg.GMS2TileCount     = currentBgInfo.TileCount;
-			bg.GMS2FrameLength   = currentBgInfo.FrameLength;
-			continue;
-		// Handle bg parameters
-		} else if (line.Contains(':')) {
-			string paramName = StripClosingWhitespace(StripOpeningWhitespace(line.Split(":")[0]));
-			string paramVal = StripClosingWhitespace(StripOpeningWhitespace(line.Split(":")[1]));
-			
-			if (paramName.Equals("transparent")) {
-				currentBgInfo.Transparent = Boolean.Parse(paramVal);
-			} else if (paramName.Equals("smooth")) {
-				currentBgInfo.Smooth = Boolean.Parse(paramVal);
-			} else if (paramName.Equals("preload")) {
-				currentBgInfo.Preload = Boolean.Parse(paramVal);
-			} else if (paramName.Equals("tile_width")) {
-				currentBgInfo.TileWidth = UInt32.Parse(paramVal);
-			} else if (paramName.Equals("tile_height")) {
-				currentBgInfo.TileHeight = UInt32.Parse(paramVal);
-			} else if (paramName.Equals("output_border_x")) {
-				currentBgInfo.OutputBorderX = UInt32.Parse(paramVal);
-			} else if (paramName.Equals("output_border_y")) {
-				currentBgInfo.OutputBorderY = UInt32.Parse(paramVal);
-			} else if (paramName.Equals("tile_columns")) {
-				currentBgInfo.TileColumns = UInt32.Parse(paramVal);
-			} else if (paramName.Equals("tile_count")) {
-				currentBgInfo.TileCount = UInt32.Parse(paramVal);
-			} else if (paramName.Equals("frame_time")) {
-				currentBgInfo.FrameLength= Int64.Parse(paramVal);
+			// Handle bg declarations
+			if (line.Contains('{')) {
+				currentBgName = StripClosingWhitespace(line.Split("{")[0]);
+				currentBgInfo = new BackgroundInfo(currentBgName);
+				// Override defaults if bg already exists
+				UndertaleBackground bg = Data.Backgrounds.ByName(currentBgName);
+				if (bg != null) {               
+					currentBgInfo.Transparent   = bg.Transparent;
+					currentBgInfo.Smooth        = bg.Smooth;
+					currentBgInfo.Preload       = bg.Preload;
+					currentBgInfo.TileWidth     = bg.GMS2TileWidth;
+					currentBgInfo.TileHeight    = bg.GMS2TileHeight;
+					currentBgInfo.OutputBorderX = bg.GMS2OutputBorderX;
+					currentBgInfo.OutputBorderY = bg.GMS2OutputBorderY;
+					currentBgInfo.TileColumns   = bg.GMS2TileColumns;
+					currentBgInfo.TileCount     = bg.GMS2TileCount;
+					currentBgInfo.FrameLength   = bg.GMS2FrameLength;
+				}
+				continue;
+			// Handle bg definition end
+			} else if (line.Contains('}')) {
+				UndertaleBackground bg = Data.Backgrounds.ByName(currentBgName);
+				if (bg == null) {
+					UndertaleString bgUTString = Data.Strings.MakeString(currentBgName);
+					bg = new UndertaleBackground();
+					bg.Name = bgUTString;
+					Data.Backgrounds.Add(bg);
+				}
+				bg.Transparent       = currentBgInfo.Transparent;
+				bg.Smooth            = currentBgInfo.Smooth;
+				bg.Preload           = currentBgInfo.Preload;
+				bg.GMS2TileWidth     = currentBgInfo.TileWidth;
+				bg.GMS2TileHeight    = currentBgInfo.TileHeight;
+				bg.GMS2OutputBorderX = currentBgInfo.OutputBorderX;
+				bg.GMS2OutputBorderY = currentBgInfo.OutputBorderY;
+				bg.GMS2TileColumns   = currentBgInfo.TileColumns;
+				bg.GMS2TileCount     = currentBgInfo.TileCount;
+				bg.GMS2FrameLength   = currentBgInfo.FrameLength;
+				continue;
+			// Handle bg parameters
+			} else if (line.Contains(':')) {
+				string paramName = StripClosingWhitespace(StripOpeningWhitespace(line.Split(":")[0]));
+				string paramVal = StripClosingWhitespace(StripOpeningWhitespace(line.Split(":")[1]));
+				
+				if (paramName.Equals("transparent")) {
+					currentBgInfo.Transparent = Boolean.Parse(paramVal);
+				} else if (paramName.Equals("smooth")) {
+					currentBgInfo.Smooth = Boolean.Parse(paramVal);
+				} else if (paramName.Equals("preload")) {
+					currentBgInfo.Preload = Boolean.Parse(paramVal);
+				} else if (paramName.Equals("tile_width")) {
+					currentBgInfo.TileWidth = UInt32.Parse(paramVal);
+				} else if (paramName.Equals("tile_height")) {
+					currentBgInfo.TileHeight = UInt32.Parse(paramVal);
+				} else if (paramName.Equals("output_border_x")) {
+					currentBgInfo.OutputBorderX = UInt32.Parse(paramVal);
+				} else if (paramName.Equals("output_border_y")) {
+					currentBgInfo.OutputBorderY = UInt32.Parse(paramVal);
+				} else if (paramName.Equals("tile_columns")) {
+					currentBgInfo.TileColumns = UInt32.Parse(paramVal);
+				} else if (paramName.Equals("tile_count")) {
+					currentBgInfo.TileCount = UInt32.Parse(paramVal);
+				} else if (paramName.Equals("frame_time")) {
+					currentBgInfo.FrameLength= Int64.Parse(paramVal);
+				} else {
+					throw new Exception(String.Format("ERROR: Parameter '{0}' was declared, but '{0}' is not a valid bg parameter.", paramName));
+				}
+				continue;
+			// Ignore empty lines
 			} else {
-				throw new Exception(String.Format("ERROR: Parameter '{0}' was declared, but '{0}' is not a valid bg parameter.", paramName));
+				continue;
 			}
-			continue;
-		// Ignore empty lines
-		} else {
-			continue;
 		}
 	}
-
+	
 	// Create bg data for any image files in the directory
 	string[] bgFiles = Directory.GetFiles(bgPath, "*.png");
 	foreach (string bgFile in bgFiles) {
@@ -2423,86 +2427,88 @@ void ImportFontInfo(string fontInfoPath, bool forceMatchingSpriteSize) {
 	FontInfo currentFontInfo = null;
 	
 	// Import data from fntInfo.txt first.
-	foreach (string lineIn in System.IO.File.ReadLines(fontInfoPath)) {
-		string line = StripOpeningWhitespace(lineIn);
-		if (line.Length < 1) {
-			continue;
-		}
-		// Ignore comments
-		if (line[0] == '#') {
-			continue;
-		}
-		// Handle font declarations
-		if (line.Contains('{')) {
-			currentFontName = StripClosingWhitespace(line.Split("{")[0]);
-			currentFontInfo = new FontInfo(currentFontName);
-			// Override defaults if font already exists
-			UndertaleFont font = Data.Fonts.ByName(currentFontName);
-			if (font != null) {               
-				currentFontInfo.DisplayName  = font.DisplayName.ToString();
-				currentFontInfo.FontSize     = font.EmSize;
-				currentFontInfo.Bold         = font.Bold;
-				currentFontInfo.Italic       = font.Italic;
-				currentFontInfo.RangeStart   = font.RangeStart;
-				currentFontInfo.RangeEnd     = font.RangeEnd;
-				currentFontInfo.Charset      = font.Charset;
-				currentFontInfo.AntiAliasing = font.AntiAliasing;
-				currentFontInfo.ScaleX       = font.ScaleX;
-				currentFontInfo.ScaleY       = font.ScaleY;
+	if (File.Exists(fontInfoPath)) {
+		foreach (string lineIn in System.IO.File.ReadLines(fontInfoPath)) {
+			string line = StripOpeningWhitespace(lineIn);
+			if (line.Length < 1) {
+				continue;
 			}
-			continue;
-		// Handle font definition end
-		} else if (line.Contains('}')) {
-			UndertaleFont font = Data.Fonts.ByName(currentFontName);
-			if (font == null) {
-				UndertaleString fontUTString = Data.Strings.MakeString(currentFontName);
-				font = new UndertaleFont();
-				font.Name = fontUTString;
-				Data.Fonts.Add(font);
+			// Ignore comments
+			if (line[0] == '#') {
+				continue;
 			}
-			font.DisplayName  = Data.Strings.MakeString(currentFontInfo.DisplayName);
-			font.EmSize       = currentFontInfo.FontSize;
-			font.Bold         = currentFontInfo.Bold;
-			font.Italic       = currentFontInfo.Italic;
-			font.RangeStart   = currentFontInfo.RangeStart;
-			font.RangeEnd     = currentFontInfo.RangeEnd;
-			font.Charset      = currentFontInfo.Charset;
-			font.AntiAliasing = currentFontInfo.AntiAliasing;
-			font.ScaleX       = currentFontInfo.ScaleX;
-			font.ScaleY       = currentFontInfo.ScaleY;
-			continue;
-		// Handle font parameters
-		} else if (line.Contains(':')) {
-			string paramName = StripClosingWhitespace(StripOpeningWhitespace(line.Split(":")[0]));
-			string paramVal = StripClosingWhitespace(StripOpeningWhitespace(line.Split(":")[1]));
-			
-			if (paramName.Equals("display_name")) {
-				currentFontInfo.DisplayName = paramVal;
-			} else if (paramName.Equals("font_size")) {
-				currentFontInfo.FontSize = UInt32.Parse(paramVal);
-			} else if (paramName.Equals("bold")) {
-				currentFontInfo.Bold = Boolean.Parse(paramVal);
-			} else if (paramName.Equals("italic")) {
-				currentFontInfo.Italic = Boolean.Parse(paramVal);
-			} else if (paramName.Equals("range_start")) {
-				currentFontInfo.RangeStart = UInt16.Parse(paramVal);
-			} else if (paramName.Equals("range_end")) {
-				currentFontInfo.RangeEnd = UInt32.Parse(paramVal);
-			} else if (paramName.Equals("charset")) {
-				currentFontInfo.Charset = Byte.Parse(paramVal);
-			} else if (paramName.Equals("anti_aliasing")) {
-				currentFontInfo.AntiAliasing = Byte.Parse(paramVal);
-			} else if (paramName.Equals("scale_x")) {
-				currentFontInfo.ScaleX = Single.Parse(paramVal);
-			} else if (paramName.Equals("scale_y")) {
-				currentFontInfo.ScaleY = Single.Parse(paramVal);
+			// Handle font declarations
+			if (line.Contains('{')) {
+				currentFontName = StripClosingWhitespace(line.Split("{")[0]);
+				currentFontInfo = new FontInfo(currentFontName);
+				// Override defaults if font already exists
+				UndertaleFont font = Data.Fonts.ByName(currentFontName);
+				if (font != null) {               
+					currentFontInfo.DisplayName  = font.DisplayName.ToString();
+					currentFontInfo.FontSize     = font.EmSize;
+					currentFontInfo.Bold         = font.Bold;
+					currentFontInfo.Italic       = font.Italic;
+					currentFontInfo.RangeStart   = font.RangeStart;
+					currentFontInfo.RangeEnd     = font.RangeEnd;
+					currentFontInfo.Charset      = font.Charset;
+					currentFontInfo.AntiAliasing = font.AntiAliasing;
+					currentFontInfo.ScaleX       = font.ScaleX;
+					currentFontInfo.ScaleY       = font.ScaleY;
+				}
+				continue;
+			// Handle font definition end
+			} else if (line.Contains('}')) {
+				UndertaleFont font = Data.Fonts.ByName(currentFontName);
+				if (font == null) {
+					UndertaleString fontUTString = Data.Strings.MakeString(currentFontName);
+					font = new UndertaleFont();
+					font.Name = fontUTString;
+					Data.Fonts.Add(font);
+				}
+				font.DisplayName  = Data.Strings.MakeString(currentFontInfo.DisplayName);
+				font.EmSize       = currentFontInfo.FontSize;
+				font.Bold         = currentFontInfo.Bold;
+				font.Italic       = currentFontInfo.Italic;
+				font.RangeStart   = currentFontInfo.RangeStart;
+				font.RangeEnd     = currentFontInfo.RangeEnd;
+				font.Charset      = currentFontInfo.Charset;
+				font.AntiAliasing = currentFontInfo.AntiAliasing;
+				font.ScaleX       = currentFontInfo.ScaleX;
+				font.ScaleY       = currentFontInfo.ScaleY;
+				continue;
+			// Handle font parameters
+			} else if (line.Contains(':')) {
+				string paramName = StripClosingWhitespace(StripOpeningWhitespace(line.Split(":")[0]));
+				string paramVal = StripClosingWhitespace(StripOpeningWhitespace(line.Split(":")[1]));
+				
+				if (paramName.Equals("display_name")) {
+					currentFontInfo.DisplayName = paramVal;
+				} else if (paramName.Equals("font_size")) {
+					currentFontInfo.FontSize = UInt32.Parse(paramVal);
+				} else if (paramName.Equals("bold")) {
+					currentFontInfo.Bold = Boolean.Parse(paramVal);
+				} else if (paramName.Equals("italic")) {
+					currentFontInfo.Italic = Boolean.Parse(paramVal);
+				} else if (paramName.Equals("range_start")) {
+					currentFontInfo.RangeStart = UInt16.Parse(paramVal);
+				} else if (paramName.Equals("range_end")) {
+					currentFontInfo.RangeEnd = UInt32.Parse(paramVal);
+				} else if (paramName.Equals("charset")) {
+					currentFontInfo.Charset = Byte.Parse(paramVal);
+				} else if (paramName.Equals("anti_aliasing")) {
+					currentFontInfo.AntiAliasing = Byte.Parse(paramVal);
+				} else if (paramName.Equals("scale_x")) {
+					currentFontInfo.ScaleX = Single.Parse(paramVal);
+				} else if (paramName.Equals("scale_y")) {
+					currentFontInfo.ScaleY = Single.Parse(paramVal);
+				} else {
+					throw new Exception(String.Format("ERROR: Parameter '{0}' was declared, but '{0}' is not a valid font parameter.", paramName));
+				}
+				continue;
+			// Ignore empty lines
 			} else {
-				throw new Exception(String.Format("ERROR: Parameter '{0}' was declared, but '{0}' is not a valid font parameter.", paramName));
+				continue;
 			}
-			continue;
-		// Ignore empty lines
-		} else {
-			continue;
 		}
 	}
 
@@ -2601,62 +2607,64 @@ void ImportPaths(string pathInfoPath) {
 	PathInfo currentPathInfo = null;
 	
 	// Import data from pathInfo.txt first.
-	foreach (string lineIn in System.IO.File.ReadLines(pathInfoPath)) {
-		string line = StripOpeningWhitespace(lineIn);
-		if (line.Length < 1) {
-			continue;
-		}
-		// Ignore comments
-		if (line[0] == '#') {
-			continue;
-		}
-		// Handle path declarations
-		if (line.Contains('{')) {
-			currentPathName = StripClosingWhitespace(line.Split("{")[0]);
-			currentPathInfo = new PathInfo(currentPathName);
-			// Override defaults if path already exists
-			UndertalePath path = Data.Paths.ByName(currentPathName);
-			if (path != null) {               
-				currentPathInfo.Smooth    = path.IsSmooth;
-				currentPathInfo.Closed    = path.IsClosed;
-				currentPathInfo.Precision = path.Precision;
+	if (File.Exists(pathInfoPath)) {
+		foreach (string lineIn in System.IO.File.ReadLines(pathInfoPath)) {
+			string line = StripOpeningWhitespace(lineIn);
+			if (line.Length < 1) {
+				continue;
 			}
-			continue;
-		// Handle path definition end
-		} else if (line.Contains('}')) {
-			UndertalePath path = Data.Paths.ByName(currentPathName);
-			if (path == null) {
-				UndertaleString pathUTString = Data.Strings.MakeString(currentPathName);
-				path = new UndertalePath();
-				path.Name = pathUTString;
-				path.IsSmooth  = currentPathInfo.Smooth;
-				path.IsClosed  = currentPathInfo.Closed;
-				path.Precision = currentPathInfo.Precision;
-				Data.Paths.Add(path);
+			// Ignore comments
+			if (line[0] == '#') {
+				continue;
+			}
+			// Handle path declarations
+			if (line.Contains('{')) {
+				currentPathName = StripClosingWhitespace(line.Split("{")[0]);
+				currentPathInfo = new PathInfo(currentPathName);
+				// Override defaults if path already exists
+				UndertalePath path = Data.Paths.ByName(currentPathName);
+				if (path != null) {               
+					currentPathInfo.Smooth    = path.IsSmooth;
+					currentPathInfo.Closed    = path.IsClosed;
+					currentPathInfo.Precision = path.Precision;
+				}
+				continue;
+			// Handle path definition end
+			} else if (line.Contains('}')) {
+				UndertalePath path = Data.Paths.ByName(currentPathName);
+				if (path == null) {
+					UndertaleString pathUTString = Data.Strings.MakeString(currentPathName);
+					path = new UndertalePath();
+					path.Name = pathUTString;
+					path.IsSmooth  = currentPathInfo.Smooth;
+					path.IsClosed  = currentPathInfo.Closed;
+					path.Precision = currentPathInfo.Precision;
+					Data.Paths.Add(path);
+				} else {
+					path.IsSmooth  = currentPathInfo.Smooth;
+					path.IsClosed  = currentPathInfo.Closed;
+					path.Precision = currentPathInfo.Precision;
+				}
+				continue;
+			// Handle path parameters
+			} else if (line.Contains(':')) {
+				string paramName = StripClosingWhitespace(StripOpeningWhitespace(line.Split(":")[0]));
+				string paramVal = StripClosingWhitespace(StripOpeningWhitespace(line.Split(":")[1]));
+				
+				if (paramName.Equals("smooth")) {
+					currentPathInfo.Smooth = Boolean.Parse(paramVal);
+				} else if (paramName.Equals("closed")) {
+					currentPathInfo.Closed = Boolean.Parse(paramVal);
+				} else if (paramName.Equals("precision")) {
+					currentPathInfo.Precision = UInt32.Parse(paramVal);
+				} else {
+					throw new Exception(String.Format("ERROR: Parameter '{0}' was declared, but '{0}' is not a valid path parameter.", paramName));
+				}
+				continue;
+			// Ignore empty lines
 			} else {
-				path.IsSmooth  = currentPathInfo.Smooth;
-				path.IsClosed  = currentPathInfo.Closed;
-				path.Precision = currentPathInfo.Precision;
+				continue;
 			}
-			continue;
-		// Handle path parameters
-		} else if (line.Contains(':')) {
-			string paramName = StripClosingWhitespace(StripOpeningWhitespace(line.Split(":")[0]));
-			string paramVal = StripClosingWhitespace(StripOpeningWhitespace(line.Split(":")[1]));
-			
-			if (paramName.Equals("smooth")) {
-				currentPathInfo.Smooth = Boolean.Parse(paramVal);
-			} else if (paramName.Equals("closed")) {
-				currentPathInfo.Closed = Boolean.Parse(paramVal);
-			} else if (paramName.Equals("precision")) {
-				currentPathInfo.Precision = UInt32.Parse(paramVal);
-			} else {
-				throw new Exception(String.Format("ERROR: Parameter '{0}' was declared, but '{0}' is not a valid path parameter.", paramName));
-			}
-			continue;
-		// Ignore empty lines
-		} else {
-			continue;
 		}
 	}
 
@@ -2830,138 +2838,139 @@ void ImportSounds(string sndPath) {
 	Dictionary<string, SoundSourceInfo> soundsWithChangedDataSource = new Dictionary<string, SoundSourceInfo>();
 	
     // Import data from soundInfo.txt first.
-	foreach (string lineIn in System.IO.File.ReadLines(sndInfoPath)) {
-		string line = StripOpeningWhitespace(lineIn);
-		if (line.Length < 1) {
-			continue;
-		}
-		// Ignore comments
-		if (line[0] == '#') {
-			continue;
-		}
-		// Handle sound declarations
-		if (line.Contains('{')) {
-			currentSoundName = StripClosingWhitespace(line.Split("{")[0]);
-			currentSoundInfo = new SoundInfo(currentSoundName);
-			// Override defaults if sound already exists
-			UndertaleSound sound = Data.Sounds.ByName(currentSoundName);
-			if (sound != null) {               
-				currentSoundInfo.Flags      = sound.Flags;
-				
-				currentSoundInfo.Effects    = sound.Effects;
-				currentSoundInfo.Volume     = sound.Volume;
-				currentSoundInfo.Preload    = sound.Preload;
-				currentSoundInfo.Pitch      = sound.Pitch;
-				
-				currentSoundInfo.AudioID    = sound.AudioID;
-				currentSoundInfo.GroupID    = sound.GroupID;
-				
-				currentSoundInfo.Type       = sound.Type == null ? null : sound.Type.Content;
-				currentSoundInfo.File       = sound.File == null ? null : sound.File.Content;
-				
-				currentSoundInfo.AudioGroup = (sound.AudioGroup == null || sound.AudioGroup.Name == null) ? null : sound.AudioGroup.Name.Content;
-				currentSoundInfo.AudioFile  = (sound.AudioFile == null || sound.AudioFile.Name == null) ? null : sound.AudioFile.Name.Content;
+	if (File.Exists(sndInfoPath)) {
+		foreach (string lineIn in System.IO.File.ReadLines(sndInfoPath)) {
+			string line = StripOpeningWhitespace(lineIn);
+			if (line.Length < 1) {
+				continue;
 			}
-			continue;
-		// Handle sound definition end
-		} else if (line.Contains('}')) {
-			UndertaleSound sound = Data.Sounds.ByName(currentSoundName);
-			if (currentSoundInfo.AudioID == -69420) {
-				throw new Exception(String.Format("ERROR: Audio ID for sound {0} could not be found! Audio ID is a mandatory field for new sounds.", currentSoundName));
+			// Ignore comments
+			if (line[0] == '#') {
+				continue;
 			}
-			if (currentSoundInfo.GroupID == -69420) {
-				throw new Exception(String.Format("ERROR: Group ID for sound {0} could not be found! Group ID is a mandatory field for new sounds.", currentSoundName));
-			}
-			if (sound == null) {
-				UndertaleString soundUTString = Data.Strings.MakeString(currentSoundName);
-				sound = new UndertaleSound();
-				sound.Name       = soundUTString;
-				sound.Flags      = currentSoundInfo.Flags;
-				sound.Type       = Data.Strings.MakeString(currentSoundInfo.Type);
-				sound.File       = Data.Strings.MakeString(currentSoundInfo.File);
-				sound.Effects    = currentSoundInfo.Effects;
-				sound.Volume     = currentSoundInfo.Volume;
-				sound.Preload    = currentSoundInfo.Preload;
-				sound.Pitch      = currentSoundInfo.Pitch;
-				sound.AudioGroup = Data.AudioGroups.ByName(currentSoundInfo.AudioGroup);
-				sound.AudioFile  = Data.EmbeddedAudio.ByName(currentSoundInfo.AudioFile);
-				sound.AudioID    = currentSoundInfo.AudioID;
-				sound.GroupID    = currentSoundInfo.GroupID;
-				
-				sound.Type       = currentSoundInfo.Type == null ? null : Data.Strings.MakeString(currentSoundInfo.Type);
-				sound.File       = currentSoundInfo.File == null ? null : Data.Strings.MakeString(currentSoundInfo.File);
-				sound.AudioGroup = currentSoundInfo.AudioGroup == null ? null : Data.AudioGroups.ByName(currentSoundInfo.AudioGroup);
-				sound.AudioFile  = currentSoundInfo.AudioFile == null ? null : Data.EmbeddedAudio.ByName(currentSoundInfo.AudioFile);
-				
-				Data.Sounds.Add(sound);
-				
-				
-			} else {
-				if (sound.GroupID != currentSoundInfo.GroupID) {
-					SoundSourceInfo srcInfo = new SoundSourceInfo(sound.Name.Content, sound.GroupID, currentSoundInfo.GroupID);
-					soundsWithChangedDataSource.Add(sound.Name.Content, srcInfo);
+			// Handle sound declarations
+			if (line.Contains('{')) {
+				currentSoundName = StripClosingWhitespace(line.Split("{")[0]);
+				currentSoundInfo = new SoundInfo(currentSoundName);
+				// Override defaults if sound already exists
+				UndertaleSound sound = Data.Sounds.ByName(currentSoundName);
+				if (sound != null) {               
+					currentSoundInfo.Flags      = sound.Flags;
+					
+					currentSoundInfo.Effects    = sound.Effects;
+					currentSoundInfo.Volume     = sound.Volume;
+					currentSoundInfo.Preload    = sound.Preload;
+					currentSoundInfo.Pitch      = sound.Pitch;
+					
+					currentSoundInfo.AudioID    = sound.AudioID;
+					currentSoundInfo.GroupID    = sound.GroupID;
+					
+					currentSoundInfo.Type       = sound.Type == null ? null : sound.Type.Content;
+					currentSoundInfo.File       = sound.File == null ? null : sound.File.Content;
+					
+					currentSoundInfo.AudioGroup = (sound.AudioGroup == null || sound.AudioGroup.Name == null) ? null : sound.AudioGroup.Name.Content;
+					currentSoundInfo.AudioFile  = (sound.AudioFile == null || sound.AudioFile.Name == null) ? null : sound.AudioFile.Name.Content;
 				}
-				sound.Flags                   = currentSoundInfo.Flags;
-				sound.Effects                 = currentSoundInfo.Effects;
-				sound.Volume                  = currentSoundInfo.Volume;
-				sound.Preload                 = currentSoundInfo.Preload;
-				sound.Pitch                   = currentSoundInfo.Pitch;
-				sound.AudioID                 = currentSoundInfo.AudioID;
-				sound.GroupID                 = currentSoundInfo.GroupID;
-				
-				if (sound.Type == null) {
-					sound.Type = currentSoundInfo.Type == null ? null : Data.Strings.MakeString(currentSoundInfo.Type);
+				continue;
+			// Handle sound definition end
+			} else if (line.Contains('}')) {
+				UndertaleSound sound = Data.Sounds.ByName(currentSoundName);
+				if (currentSoundInfo.AudioID == -69420) {
+					throw new Exception(String.Format("ERROR: Audio ID for sound {0} could not be found! Audio ID is a mandatory field for new sounds.", currentSoundName));
+				}
+				if (currentSoundInfo.GroupID == -69420) {
+					throw new Exception(String.Format("ERROR: Group ID for sound {0} could not be found! Group ID is a mandatory field for new sounds.", currentSoundName));
+				}
+				if (sound == null) {
+					UndertaleString soundUTString = Data.Strings.MakeString(currentSoundName);
+					sound = new UndertaleSound();
+					sound.Name       = soundUTString;
+					sound.Flags      = currentSoundInfo.Flags;
+					sound.Type       = Data.Strings.MakeString(currentSoundInfo.Type);
+					sound.File       = Data.Strings.MakeString(currentSoundInfo.File);
+					sound.Effects    = currentSoundInfo.Effects;
+					sound.Volume     = currentSoundInfo.Volume;
+					sound.Preload    = currentSoundInfo.Preload;
+					sound.Pitch      = currentSoundInfo.Pitch;
+					sound.AudioGroup = Data.AudioGroups.ByName(currentSoundInfo.AudioGroup);
+					sound.AudioFile  = Data.EmbeddedAudio.ByName(currentSoundInfo.AudioFile);
+					sound.AudioID    = currentSoundInfo.AudioID;
+					sound.GroupID    = currentSoundInfo.GroupID;
+					
+					sound.Type       = currentSoundInfo.Type == null ? null : Data.Strings.MakeString(currentSoundInfo.Type);
+					sound.File       = currentSoundInfo.File == null ? null : Data.Strings.MakeString(currentSoundInfo.File);
+					sound.AudioGroup = currentSoundInfo.AudioGroup == null ? null : Data.AudioGroups.ByName(currentSoundInfo.AudioGroup);
+					sound.AudioFile  = currentSoundInfo.AudioFile == null ? null : Data.EmbeddedAudio.ByName(currentSoundInfo.AudioFile);
+					
+					Data.Sounds.Add(sound);
+					
+					
 				} else {
-					sound.Type.Content = currentSoundInfo.Type == null ? null : currentSoundInfo.Type;
+					if (sound.GroupID != currentSoundInfo.GroupID) {
+						SoundSourceInfo srcInfo = new SoundSourceInfo(sound.Name.Content, sound.GroupID, currentSoundInfo.GroupID);
+						soundsWithChangedDataSource.Add(sound.Name.Content, srcInfo);
+					}
+					sound.Flags                   = currentSoundInfo.Flags;
+					sound.Effects                 = currentSoundInfo.Effects;
+					sound.Volume                  = currentSoundInfo.Volume;
+					sound.Preload                 = currentSoundInfo.Preload;
+					sound.Pitch                   = currentSoundInfo.Pitch;
+					sound.AudioID                 = currentSoundInfo.AudioID;
+					sound.GroupID                 = currentSoundInfo.GroupID;
+					
+					if (sound.Type == null) {
+						sound.Type = currentSoundInfo.Type == null ? null : Data.Strings.MakeString(currentSoundInfo.Type);
+					} else {
+						sound.Type.Content = currentSoundInfo.Type == null ? null : currentSoundInfo.Type;
+					}
+					
+					if (sound.File == null) {
+						sound.File = currentSoundInfo.File == null ? null : Data.Strings.MakeString(currentSoundInfo.File);
+					} else {
+						sound.File.Content = currentSoundInfo.File == null ? null : currentSoundInfo.File;
+					}
+					
+					sound.AudioGroup = currentSoundInfo.AudioGroup == null ? null : Data.AudioGroups.ByName(currentSoundInfo.AudioGroup);
+					sound.AudioFile  = currentSoundInfo.AudioFile  == null ? null : Data.EmbeddedAudio.ByName(currentSoundInfo.AudioFile);
 				}
+				continue;
+			// Handle sound parameters
+			} else if (line.Contains(':')) {
+				string paramName = StripClosingWhitespace(StripOpeningWhitespace(line.Split(":")[0]));
+				string paramVal = StripClosingWhitespace(StripOpeningWhitespace(line.Split(":")[1]));
 				
-				if (sound.File == null) {
-					sound.File = currentSoundInfo.File == null ? null : Data.Strings.MakeString(currentSoundInfo.File);
+				if (paramName.Equals("flags")) {
+					currentSoundInfo.Flags = (UndertaleSound.AudioEntryFlags) Enum.Parse(typeof(UndertaleSound.AudioEntryFlags), paramVal, true);
+				} else if (paramName.Equals("type")) {
+					currentSoundInfo.Type = paramVal;
+				} else if (paramName.Equals("file")) {
+					currentSoundInfo.File = paramVal;
+				} else if (paramName.Equals("effects")) {
+					currentSoundInfo.Effects = UInt32.Parse(paramVal);
+				} else if (paramName.Equals("volume")) {
+					currentSoundInfo.Volume = Single.Parse(paramVal);
+				} else if (paramName.Equals("preload")) {
+					currentSoundInfo.Preload = Boolean.Parse(paramVal);
+				} else if (paramName.Equals("pitch")) {
+					currentSoundInfo.Pitch = Single.Parse(paramVal);
+				} else if (paramName.Equals("audio_group")) {
+					currentSoundInfo.AudioGroup = paramVal;
+				} else if (paramName.Equals("audio_file")) {
+					currentSoundInfo.AudioFile = paramVal;
+				} else if (paramName.Equals("audio_id")) {
+					currentSoundInfo.AudioID = Int32.Parse(paramVal);
+				} else if (paramName.Equals("group_id")) {
+					currentSoundInfo.GroupID = Int32.Parse(paramVal);
 				} else {
-					sound.File.Content = currentSoundInfo.File == null ? null : currentSoundInfo.File;
+					throw new Exception(String.Format("ERROR: Parameter '{0}' was declared, but '{0}' is not a valid sound parameter.", paramName));
 				}
-				
-				sound.AudioGroup = currentSoundInfo.AudioGroup == null ? null : Data.AudioGroups.ByName(currentSoundInfo.AudioGroup);
-				sound.AudioFile  = currentSoundInfo.AudioFile  == null ? null : Data.EmbeddedAudio.ByName(currentSoundInfo.AudioFile);
-			}
-			continue;
-		// Handle sound parameters
-		} else if (line.Contains(':')) {
-			string paramName = StripClosingWhitespace(StripOpeningWhitespace(line.Split(":")[0]));
-			string paramVal = StripClosingWhitespace(StripOpeningWhitespace(line.Split(":")[1]));
-			
-			if (paramName.Equals("flags")) {
-				currentSoundInfo.Flags = (UndertaleSound.AudioEntryFlags) Enum.Parse(typeof(UndertaleSound.AudioEntryFlags), paramVal, true);
-			} else if (paramName.Equals("type")) {
-				currentSoundInfo.Type = paramVal;
-			} else if (paramName.Equals("file")) {
-				currentSoundInfo.File = paramVal;
-			} else if (paramName.Equals("effects")) {
-				currentSoundInfo.Effects = UInt32.Parse(paramVal);
-			} else if (paramName.Equals("volume")) {
-				currentSoundInfo.Volume = Single.Parse(paramVal);
-			} else if (paramName.Equals("preload")) {
-				currentSoundInfo.Preload = Boolean.Parse(paramVal);
-			} else if (paramName.Equals("pitch")) {
-				currentSoundInfo.Pitch = Single.Parse(paramVal);
-			} else if (paramName.Equals("audio_group")) {
-				currentSoundInfo.AudioGroup = paramVal;
-			} else if (paramName.Equals("audio_file")) {
-				currentSoundInfo.AudioFile = paramVal;
-			} else if (paramName.Equals("audio_id")) {
-				currentSoundInfo.AudioID = Int32.Parse(paramVal);
-			} else if (paramName.Equals("group_id")) {
-				currentSoundInfo.GroupID = Int32.Parse(paramVal);
+				continue;
+			// Ignore empty lines
 			} else {
-				throw new Exception(String.Format("ERROR: Parameter '{0}' was declared, but '{0}' is not a valid sound parameter.", paramName));
+				continue;
 			}
-			continue;
-		// Ignore empty lines
-		} else {
-			continue;
 		}
 	}
-	
 	// Import audio from snd files
 	string[] soundFiles = Directory.GetFiles(sndPath, "*.snd");
 	foreach (string soundFile in soundFiles) {
