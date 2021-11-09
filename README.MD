@@ -8,6 +8,7 @@ To use HgPatcher, all you need to do is to execute the script files as scripts i
 +Streamlines the patch creation process  
 +No code needs to be written to patch your content into a game  
 +Distribute patches with lower risk of copyright infringement  
++Not dependent on version of game - effects are the same even if the data.win changes!
 ## Cons  
 -May not make efficient use of computing resources  
 -Patching process cannot be reversed easily  
