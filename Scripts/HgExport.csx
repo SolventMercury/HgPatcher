@@ -860,19 +860,19 @@ void AddSpriteParams(string assetName, UndertaleData VanillaData, UndertaleData 
 		paramValues.Add(modSprite.Height.ToString());
 	}
 	if (vanillaSprite.MarginLeft != modSprite.MarginLeft) {
-		paramNames.Add("margin_");
+		paramNames.Add("margin_left");
 		paramValues.Add(modSprite.MarginLeft.ToString());
 	}
 	if (vanillaSprite.MarginRight != modSprite.MarginRight) {
-		paramNames.Add("margin_");
+		paramNames.Add("margin_right");
 		paramValues.Add(modSprite.MarginRight.ToString());
 	}
 	if (vanillaSprite.MarginBottom != modSprite.MarginBottom) {
-		paramNames.Add("margin_");
+		paramNames.Add("margin_bottom");
 		paramValues.Add(modSprite.MarginBottom.ToString());
 	}
 	if (vanillaSprite.MarginTop != modSprite.MarginTop) {
-		paramNames.Add("margin_");
+		paramNames.Add("margin_top");
 		paramValues.Add(modSprite.MarginTop.ToString());
 	}
 	if (vanillaSprite.Transparent != modSprite.Transparent) {
@@ -1077,7 +1077,8 @@ void AddSoundData (string assetName, UndertaleData VanillaData, UndertaleData Mo
 	byte[] modSoundData = GetSoundData(modSound, ModData, ModDataPath, false);
 	if (modSoundData == null) {
 		// TODO: Handle this better
-		throw new Exception(String.Format("ERROR: {0}'s sound data was null, cannot export.", assetName));
+		//throw new Exception(String.Format("ERROR: {0}'s sound data was null, cannot export.", assetName));
+		return;
 	}
 	
 	string outPath = String.Format("{0}.snd", Path.Join(soundPath, assetName));
@@ -1546,11 +1547,13 @@ void CompareSpriteForAddition(UndertaleSprite modSprite, TempDataContainer tempV
 			lock(AssetsAlteredDataDict) {
 				AssetsAlteredDataDict.Add(modSprite.Name.Content, AssetType.Sprite);
 			}
+			return;
 		}
 		if (!AllMaskEquals(vanillaSprite, modSprite)) {
 			lock(AssetsAlteredDataDict) {
 				AssetsAlteredDataDict.Add(modSprite.Name.Content, AssetType.Mask);
 			}
+			return;
 		}
 	}
 }
