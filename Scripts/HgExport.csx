@@ -1,3 +1,7 @@
+// HgPatcher - a universal patching format for GML.
+// By https://github.com/SolventMercury
+// Based off work by Jockeholm and Samuel Roy
+
 using System;
 using System.IO;
 using System.Linq;
@@ -679,7 +683,7 @@ UndertaleSound GetDefaultSound() {
 	defaultSound.Volume = 1;
 	defaultSound.Preload = true;
 	defaultSound.Pitch = 0;
-	return null;
+	return defaultSound;
 }
 
 UndertalePath GetDefaultPath() {
@@ -763,25 +767,28 @@ void AddSoundParams(string assetName, UndertaleData VanillaData, UndertaleData M
 		paramValues.Add(modSound.Flags.ToString());
 	}
 	if (vanillaSound.Type != modSound.Type) {
-		if (vanillaSound.Type == null) {
+		if (vanillaSound.Type == null || modSound.Type == null) {
 			paramNames.Add("type");
-			paramValues.Add(modSound.Type.Content);
-		}
-		if (!vanillaSound.Type.Content.Equals(modSound.Type.Content)) {
-			paramNames.Add("type");
-			paramValues.Add(modSound.Type.Content);
+			paramValues.Add(modSound.Type == null ? null :  modSound.Type.Content);
+		} else {
+			if (!vanillaSound.Type.Content.Equals(modSound.Type.Content)) {
+				paramNames.Add("type");
+				paramValues.Add(modSound.Type.Content);
+			}
 		}
 	}
 	if (vanillaSound.File != modSound.File) {
-		if (vanillaSound.File == null) {
+		if (vanillaSound.File == null || modSound.File == null) {
 			paramNames.Add("file");
-			paramValues.Add(modSound.File.Content);
-		}
-		if (!vanillaSound.File.Content.Equals(modSound.File.Content)) {
-			paramNames.Add("file");
-			paramValues.Add(modSound.File.Content);
+			paramValues.Add(modSound.File == null ? null : modSound.File.Content);
+		} else {
+			if (!vanillaSound.File.Content.Equals(modSound.File.Content)) {
+				paramNames.Add("file");
+				paramValues.Add(modSound.File.Content);
+			}
 		}
 	}
+	
 	if (vanillaSound.Effects != modSound.Effects) {
 		paramNames.Add("effects");
 		paramValues.Add(modSound.Effects.ToString());
@@ -799,23 +806,25 @@ void AddSoundParams(string assetName, UndertaleData VanillaData, UndertaleData M
 		paramValues.Add(modSound.Pitch.ToString());
 	}
 	if (vanillaSound.AudioGroup != modSound.AudioGroup) {
-		if (vanillaSound.AudioGroup == null) {
+		if (vanillaSound.AudioGroup == null || modSound.AudioGroup == null) {
 			paramNames.Add("audio_group");
-			paramValues.Add(modSound.AudioGroup.Name.Content);
-		}
-		if (!vanillaSound.AudioGroup.Name.Content.Equals(modSound.AudioGroup.Name.Content)) {
-			paramNames.Add("audio_group");
-			paramValues.Add(modSound.AudioGroup.Name.Content);
+			paramValues.Add(modSound.AudioGroup == null ? null :  modSound.AudioGroup.Name.Content);
+		} else {
+			if (!vanillaSound.AudioGroup.Name.Content.Equals(modSound.AudioGroup.Name.Content)) {
+				paramNames.Add("audio_group");
+				paramValues.Add(modSound.AudioGroup.Name.Content);
+			}
 		}
 	}
 	if (vanillaSound.AudioFile != modSound.AudioFile) {
-		if (vanillaSound.AudioFile == null) {
+		if (vanillaSound.AudioFile == null || modSound.AudioFile == null) {
 			paramNames.Add("audio_file");
-			paramValues.Add(modSound.AudioFile.Name.Content);
-		}
-		if (!vanillaSound.AudioFile.Name.Content.Equals(modSound.AudioFile.Name.Content)) {
-			paramNames.Add("audio_file");
-			paramValues.Add(modSound.AudioFile.Name.Content);
+			paramValues.Add(modSound.AudioFile == null ? null :  modSound.AudioFile.Name.Content);
+		} else {
+			if (!vanillaSound.AudioFile.Name.Content.Equals(modSound.AudioFile.Name.Content)) {
+				paramNames.Add("audio_file");
+				paramValues.Add(modSound.AudioFile.Name.Content);
+			}
 		}
 	}
 	if (vanillaSound.AudioID != modSound.AudioID) {
@@ -1065,9 +1074,15 @@ void AddSoundData (string assetName, UndertaleData VanillaData, UndertaleData Mo
 	UndertaleSound modSound     = VanillaData.Sounds.ByName(assetName);
 	UndertaleSound vanillaSound = ModData.Sounds.ByName(assetName);
 	
+	
 	byte[] modSoundData = GetSoundData(modSound, ModData, ModDataPath, false);
+	if (assetName.Equals("snd_train")) {
+		ScriptMessage(String.Format("Length of sound data for test sound: {0}", modSoundData == null ? "null" : modSoundData.Length));
+	}
 	if (modSoundData == null) {
-		throw new Exception(String.Format("ERROR: {0}'s sound data was null, cannot export.", assetName));
+		// TODO: Handle this better
+		//throw new Exception(String.Format("ERROR: {0}'s sound data was null, cannot export.", assetName));
+		return;
 	}
 	
 	string outPath = String.Format("{0}.snd", Path.Join(soundPath, assetName));
@@ -1076,14 +1091,16 @@ void AddSoundData (string assetName, UndertaleData VanillaData, UndertaleData Mo
 }
 
 byte[] GetSoundData (UndertaleSound sound, UndertaleData data, string dataPath, bool vanillaData) {
+	if (sound == null) {
+		return null;
+	}
 	if (data == null || dataPath == null) {
         throw new Exception(String.Format("ERROR: Sound {0} could not be linked to a data file and/or data path.", sound.Name.Content));
 	}
 	if (sound.GroupID > data.GetBuiltinSoundGroupID()) {
-		
         IList<UndertaleEmbeddedAudio> audioGroup = GetAudioGroupData(sound, dataPath, vanillaData);
         if (audioGroup != null) {
-            return audioGroup[sound.AudioID].Data;
+            return audioGroup[sound.AudioID] == null ? null : audioGroup[sound.AudioID].Data;
 		}
     } else {
 		if (sound.AudioFile != null) {
@@ -1371,7 +1388,7 @@ void AddMaskData (string assetName, UndertaleData VanillaData, UndertaleData Mod
 
 void WriteParamsToFile(string infoPath, string assetName, List<string> paramNames, List<string> paramValues) {
 	StringBuilder sb = new StringBuilder(512);
-	StreamWriter sw = new StreamWriter(infoPath);
+	StreamWriter sw = new StreamWriter(new FileStream(infoPath, FileMode.Append), Encoding.Default);
 	
 	if (paramNames.Count != paramValues.Count) {
 		throw new Exception(String.Format("ERROR: paramNames and paramValues for parameters being written to {0} have unequal length!", infoPath));
@@ -2083,6 +2100,13 @@ string bgInfoPath     = Path.Join(bgPath, "bgInfo.txt");
 string fontInfoPath   = Path.Join(fontPath, "fntInfo.txt");
 string pathInfoPath   = Path.Join(pathPath, "pathInfo.txt");	
 string soundInfoPath  = Path.Join(soundPath, "soundInfo.txt");
+
+string[] infoFiles = {spriteInfoPath, bgInfoPath, fontInfoPath, pathInfoPath, soundInfoPath};
+foreach (string infoFile in infoFiles) {
+	if (File.Exists(infoFile)) {
+		File.Delete(infoFile);
+	}
+}
 
 bool keepGoing = ScriptQuestion("WARNING: The patch creation process cannot be cancelled, and can last anywhere from 5 minutes to over an hour. Are you sure you want to proceed?\n\nNOTE: Due to high CPU usage, the progress bar is likely to desync from the script's actual progress, and some steps of the script take much longer than others.");
 if (!keepGoing) {
