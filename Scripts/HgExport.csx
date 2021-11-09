@@ -1269,8 +1269,8 @@ void AddFontData (string assetName, UndertaleData VanillaData, UndertaleData Mod
 		newGlyphs = true;
 		newTexture = true;
 	} else {
-		newGlyphs = !FontTextureEquals(vanillaFont, modFont);
-		newTexture = !FontGlyphEquals(vanillaFont, modFont);
+		newGlyphs = !FontGlyphEquals(vanillaFont, modFont);
+		newTexture = !FontTextureEquals(vanillaFont, modFont);
 	}
 	
 	if (newGlyphs) {
