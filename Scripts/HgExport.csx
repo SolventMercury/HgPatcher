@@ -1251,7 +1251,7 @@ void AddSpriteData (string assetName, UndertaleData VanillaData, UndertaleData M
 
 void AddBackgroundData (string assetName, UndertaleData VanillaData, UndertaleData ModData) {
 	StringBuilder sb = new StringBuilder();
-	sb.Append(Path.Join(fontPath, assetName));
+	sb.Append(Path.Join(bgPath, assetName));
 	sb.Append(".png");
 	worker.ExportAsPNG(ModData.Backgrounds.ByName(assetName).Texture, sb.ToString());
 }
