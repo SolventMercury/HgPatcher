@@ -1,4 +1,4 @@
-HgPatch is an all-in-one patch format for games made in GameMaker. It currently supports importing and replacing code, sprites, masks, audio, fonts, backgrounds, textures, rooms, and objects. However, it is rather temperamental in its current state, so it's very important that you understand how to use it.  
+HgPatch is an all-in-one patch format for games made in GameMaker. It currently supports importing and replacing code, sprites, masks, audio, fonts, backgrounds, textures, rooms, sounds, and objects. However, it is rather temperamental in its current state, so it's very important that you understand how to use it and make preparations in case it malfunctions.  
   
 ## Pros  
 +Ease of application  
