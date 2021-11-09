@@ -1076,9 +1076,6 @@ void AddSoundData (string assetName, UndertaleData VanillaData, UndertaleData Mo
 	
 	
 	byte[] modSoundData = GetSoundData(modSound, ModData, ModDataPath, false);
-	if (assetName.Equals("snd_train")) {
-		ScriptMessage(String.Format("Length of sound data for test sound: {0}", modSoundData == null ? "null" : modSoundData.Length));
-	}
 	if (modSoundData == null) {
 		// TODO: Handle this better
 		//throw new Exception(String.Format("ERROR: {0}'s sound data was null, cannot export.", assetName));
