@@ -262,6 +262,8 @@ void ReadRoom(string filePath) {
 	
 	ReadRoomMainVals(ref reader, newRoom);
 	
+	ClearRoomData(newRoom);
+	
 	ReadBackgrounds(ref reader, newRoom);
 	ReadViews(ref reader, newRoom);
 	ReadGameObjects(ref reader, newRoom);
@@ -269,6 +271,16 @@ void ReadRoom(string filePath) {
 	ReadLayers(ref reader, newRoom);
 	
 	ReadAnticipateEndObj(ref reader);
+
+}
+
+void ClearRoomData(UndertaleRoom newRoom) {
+	newRoom.Backgrounds.Clear();
+	newRoom.Views.Clear();
+	newRoom.GameObjects.Clear();
+	newRoom.Tiles.Clear();
+	newRoom.Layers.Clear();
+	newRoom.Sequences.Clear();
 }
 
 void ReadRoomMainVals(ref Utf8JsonReader reader, UndertaleRoom newRoom) {
@@ -294,16 +306,14 @@ void ReadRoomMainVals(ref Utf8JsonReader reader, UndertaleRoom newRoom) {
 	newRoom.GravityY            = ReadFloat(ref reader);
 	newRoom.MetersPerPixel      = ReadFloat(ref reader);
 	
-	if (caption == null) {
-		newRoom.Caption = null;
-	} else {
+	if (caption != null) {
 		newRoom.Caption = new UndertaleString(caption);
+		ScriptMessage(String.Format("caption is {0}", caption));
 	}
 	
-	if (ccIdName == null) {
-		newRoom.CreationCodeId = null;
-	} else {
+	if (ccIdName != null) {
 		newRoom.CreationCodeId = Data.Code.ByName(ccIdName);
+		ScriptMessage(String.Format("Creation Code is {0}", ccIdName));
 	}
 }
 
@@ -943,7 +953,12 @@ string ReadString(ref Utf8JsonReader reader) {
 			continue;
 		}
 		if (reader.TokenType == JsonTokenType.String) {
-			return reader.GetString();
+			string result = reader.GetString();
+			if (result.Equals("null") || result.Length < 1) {
+				return null;
+			} else {
+				return result;
+			}
 		} else if (reader.TokenType == JsonTokenType.Null) {
 			return null;
 		} else {
