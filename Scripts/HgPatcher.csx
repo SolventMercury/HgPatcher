@@ -46,27 +46,23 @@ void ReadGameObject(string filePath) {
 
 	Utf8JsonReader reader = new Utf8JsonReader(jsonUtf8Bytes, options);
 	
-	UndertaleGameObject newGameObject = new UndertaleGameObject();
+	
+	UndertaleGameObject newGameObject;
 	
 	ReadAnticipateStartObj(ref reader);
 	
-	ReadObjectName(ref reader, newGameObject);
+	string objName = ReadObjectName(ref reader);
 	
-	if (Data.GameObjects.ByName(newGameObject.Name.Content) != null) {
-		UndertaleGameObject placeholderGameObject = new UndertaleGameObject();
-		placeholderGameObject.Name = Data.GameObjects.ByName(newGameObject.Name.Content).Name;
-		Data.GameObjects[Data.IndexOf(Data.GameObjects.ByName(newGameObject.Name.Content))] = placeholderGameObject;
+	if (Data.GameObjects.ByName(objName) == null) {
+		newGameObject = new UndertaleGameObject();
+	} else {
+		newGameObject = Data.GameObjects.ByName(objName);
 	}
 	
 	ReadObjectMainVals(ref reader, newGameObject);
 	ReadPhysicsVerts(ref reader, newGameObject);
 	ReadAllEvents(ref reader, newGameObject);
 	ReadAnticipateEndObj(ref reader);
-	if (Data.GameObjects.ByName(newGameObject.Name.Content) == null) {
-		Data.GameObjects.Add(newGameObject);
-	} else {
-		Data.GameObjects[Data.IndexOf(Data.GameObjects.ByName(newGameObject.Name.Content))] = newGameObject;
-	}
 }
 
 void ReadObjectMainVals(ref Utf8JsonReader reader, UndertaleGameObject newGameObject) {
@@ -230,12 +226,12 @@ UndertaleGameObject.EventAction ReadAction(ref Utf8JsonReader reader) {
 	return newAction;
 }
 
-void ReadObjectName(ref Utf8JsonReader reader, UndertaleGameObject newGameObject) {
+string ReadObjectName(ref Utf8JsonReader reader) {
 	string name = ReadString(ref reader);
 	if (name == null) {
 		throw new Exception("ERROR: Object name was null - object name must be defined!");
 	}
-	newGameObject.Name = new UndertaleString(name);
+	return name;
 }
 
 void ReadRoom(string filePath) {
@@ -252,16 +248,16 @@ void ReadRoom(string filePath) {
 
 	Utf8JsonReader reader = new Utf8JsonReader(jsonUtf8Bytes, options);
 	
-	UndertaleRoom newRoom = new UndertaleRoom();
+	UndertaleRoom newRoom;
 	
 	ReadAnticipateStartObj(ref reader);
 	
-	ReadRoomName(ref reader, newRoom);
+	string roomName = ReadRoomName(ref reader);
 	
-	if (Data.Rooms.ByName(newRoom.Name.Content) != null) {
-		UndertaleRoom placeholderRoom = new UndertaleRoom();
-		placeholderRoom.Name = Data.Rooms.ByName(newRoom.Name.Content).Name;
-		Data.Rooms[Data.IndexOf(Data.Rooms.ByName(newRoom.Name.Content))] = placeholderRoom;
+	if (Data.Rooms.ByName(roomName) == null) {
+		newRoom = new UndertaleRoom();
+	} else {
+		newRoom = Data.Rooms.ByName(roomName);
 	}
 	
 	ReadRoomMainVals(ref reader, newRoom);
@@ -273,11 +269,6 @@ void ReadRoom(string filePath) {
 	ReadLayers(ref reader, newRoom);
 	
 	ReadAnticipateEndObj(ref reader);
-	if (Data.Rooms.ByName(newRoom.Name.Content) == null) {
-		Data.Rooms.Add(newRoom);
-	} else {
-		Data.Rooms[Data.IndexOf(Data.Rooms.ByName(newRoom.Name.Content))] = newRoom;
-	}
 }
 
 void ReadRoomMainVals(ref Utf8JsonReader reader, UndertaleRoom newRoom) {
@@ -316,13 +307,13 @@ void ReadRoomMainVals(ref Utf8JsonReader reader, UndertaleRoom newRoom) {
 	}
 }
 
-void ReadRoomName(ref Utf8JsonReader reader, UndertaleRoom newRoom) {
+string ReadRoomName(ref Utf8JsonReader reader) {
 	
 	string name = ReadString(ref reader);
 	if (name == null) {
 		throw new Exception("ERROR: Object name was null - object name must be defined!");
 	}
-	newRoom.Name = new UndertaleString(name);
+	return name;
 }
 
 void ReadBackgrounds (ref Utf8JsonReader reader, UndertaleRoom newRoom) {
@@ -1830,7 +1821,7 @@ Dictionary<string, SpriteInfo> ImportSpriteInfo(string spriteInfoPath, bool forc
 					currentSpriteInfo.OriginY = Int32.Parse(paramVal);
 				} else if (paramName.Equals("playback_speed")) {
 					currentSpriteInfo.PlaybackSpeed = Single.Parse(paramVal);
-				} else if (paramName.Equals("playback")) {
+				} else if (paramName.Equals("playback_speed_type")) {
 					currentSpriteInfo.Playback = (AnimSpeedType) Enum.Parse(typeof(AnimSpeedType), paramVal, true);
 				} else {
 					throw new Exception(String.Format("ERROR: Parameter '{0}' was declared, but '{0}' is not a valid sprite parameter.", paramName));
@@ -2876,10 +2867,12 @@ void ImportSounds(string sndPath) {
 			} else if (line.Contains('}')) {
 				UndertaleSound sound = Data.Sounds.ByName(currentSoundName);
 				if (currentSoundInfo.AudioID == -69420) {
-					throw new Exception(String.Format("ERROR: Audio ID for sound {0} could not be found! Audio ID is a mandatory field for new sounds.", currentSoundName));
+					continue;
+					//throw new Exception(String.Format("ERROR: Audio ID for sound {0} could not be found! Audio ID is a mandatory field for new sounds.", currentSoundName));
 				}
 				if (currentSoundInfo.GroupID == -69420) {
-					throw new Exception(String.Format("ERROR: Group ID for sound {0} could not be found! Group ID is a mandatory field for new sounds.", currentSoundName));
+					continue;
+					//throw new Exception(String.Format("ERROR: Group ID for sound {0} could not be found! Group ID is a mandatory field for new sounds.", currentSoundName));
 				}
 				if (sound == null) {
 					UndertaleString soundUTString = Data.Strings.MakeString(currentSoundName);
