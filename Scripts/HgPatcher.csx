@@ -3104,18 +3104,57 @@ if (patchPath == null) {
 
 // Construct paths
 string cfgPath        = Path.Join(patchPath, "patch.cfg");
+
 string srcPath        = Path.Join(patchPath, "src");
+if(!Directory.Exists(srcPath)){
+	Directory.CreateDirectory(srcPath);
+}
+
 string spritePath     = Path.Join(patchPath, "spr");
+if(!Directory.Exists(spritePath)){
+	Directory.CreateDirectory(spritePath);
+}
 string spriteInfoPath = Path.Join(spritePath, "spriteInfo.txt");
+
 string bgPath         = Path.Join(patchPath, "bg");
+if(!Directory.Exists(bgPath)){
+	Directory.CreateDirectory(bgPath);
+}
+
 string bgInfoPath     = Path.Join(bgPath, "bgInfo.txt");
+
 string maskPath       = Path.Join(patchPath, "mask");
+if(!Directory.Exists(maskPath)){
+	Directory.CreateDirectory(maskPath);
+}
+
 string soundPath      = Path.Join(patchPath, "snd");
+if(!Directory.Exists(soundPath)){
+	Directory.CreateDirectory(soundPath);
+}
+
 string roomPath       = Path.Join(patchPath, "room");
+if(!Directory.Exists(roomPath)){
+	Directory.CreateDirectory(roomPath);
+}
+
 string objPath        = Path.Join(patchPath, "obj");
+if(!Directory.Exists(objPath)){
+	Directory.CreateDirectory(objPath);
+}
+
 string fntPath        = Path.Join(patchPath, "fnt");
+if(!Directory.Exists(fntPath)){
+	Directory.CreateDirectory(fntPath);
+}
+
 string fntInfoPath    = Path.Join(fntPath, "fntInfo.txt");
+
 string pathPath       = Path.Join(patchPath, "path"); // I'm sure this name will cause no confusion whatsoever.
+if(!Directory.Exists(pathPath)){
+	Directory.CreateDirectory(pathPath);
+}
+
 string pathInfoPath   = Path.Join(pathPath, "pathInfo.txt"); // I'm sure this name will cause no confusion whatsoever.
 
 // Read each config variable we need
@@ -3146,20 +3185,27 @@ if (!continuePatch) {
 // But we can't create them fully as they may also require other assets.
 CreateHollowGameObjects(objPath);
 
+
+
 // Do the same for rooms
 CreateHollowRooms(roomPath);
 
 // And also for code
 CreateHollowCode(srcPath);
 
+
 // Next import assets
 
 // First import some basic ones.
 // Import Paths
+
 ImportPaths(pathInfoPath);
 
+
 // Import sounds
+
 ImportSounds(soundPath);
+
 
 // Now for sprites, backgrounds, fonts, textures, and masks.
 // Delightful(ly complex)!
@@ -3187,6 +3233,7 @@ if (Data.Sprites.Count > 0) {
 // Returns a dict linking each new/modified sprite's name to its sprite info
 Dictionary<string, SpriteInfo> spriteInfoDict = ImportSpriteInfo(spriteInfoPath, forceMatchingSpriteSize, sVersion);
 
+
 // Import font and background data
 // Also create their entries in UMT if they don't already exist
 ImportBackgroundInfo(bgInfoPath, forceMatchingSpriteSize);
@@ -3196,7 +3243,8 @@ ImportFontInfo(fntInfoPath, forceMatchingSpriteSize);
 ImportTextures(spritePath, bgPath, fntPath, spriteInfoDict, forceMatchingSpriteSize);
 
 // Import masks
-ImportMasks(maskPath);
+ImportMasks(maskPath);	
+
 
 // Now rearrange order of all assets I think?
 // Need to research that
