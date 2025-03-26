@@ -1,6 +1,5 @@
 // HgPatcher - a universal patching format for GML.
-// By https://github.com/SolventMercury
-// Based off work by Jockeholm and Samuel Roy
+// Made by https://github.com/SolventMercury with contributions from Jockeholm
 
 using System;
 using System.IO;
@@ -19,9 +18,10 @@ using UndertaleModLib;
 using UndertaleModLib.Util;
 using UndertaleModLib.Models;
 using UndertaleModLib.Scripting;
+using UndertaleModLib.Decompiler;
+using ImageMagick;
 
-
-
+List<string> CodeThatCouldNotBeDecompiled = new List<string>();
 TextureWorker worker = new TextureWorker();
 ThreadLocal<GlobalDecompileContext> DECOMPILE_CONTEXT = new ThreadLocal<GlobalDecompileContext>(() => new GlobalDecompileContext(Data, false));
 int numSteps = 5;
@@ -114,11 +114,8 @@ string RoomToJson(UndertaleRoom room) {
 				
 				writer.WriteNumber("x", bg.X);
 				writer.WriteNumber("y", bg.Y);
-				writer.WriteNumber("tile_x", bg.TileX);
-				writer.WriteNumber("tile_y", bg.TileY);
 				writer.WriteNumber("speed_x", bg.SpeedX);
 				writer.WriteNumber("speed_y", bg.SpeedY);
-				writer.WriteBoolean("stretch", bg.Stretch);
 
 			}
 			
@@ -210,7 +207,7 @@ string RoomToJson(UndertaleRoom room) {
 		foreach (UndertaleRoom.Tile tile in room.Tiles) {
 			writer.WriteStartObject();
 			if (tile != null) {
-				writer.WriteBoolean("sprite_mode", tile._SpriteMode);
+				//writer.WriteBoolean("sprite_mode", tile._SpriteMode);
 				writer.WriteNumber("x", tile.X);
 				writer.WriteNumber("y", tile.Y);
 
@@ -343,7 +340,7 @@ string RoomToJson(UndertaleRoom room) {
 							foreach (UndertaleRoom.Tile tile in layerData.LegacyTiles) {
 								writer.WriteStartObject();
 								if (tile != null) {
-									writer.WriteBoolean("sprite_mode", tile._SpriteMode);
+									//writer.WriteBoolean("sprite_mode", tile._SpriteMode);
 									writer.WriteNumber("x", tile.X);
 									writer.WriteNumber("y", tile.Y);
 									
@@ -1189,12 +1186,153 @@ void AddCodeData (string assetName, UndertaleData VanillaData, UndertaleData Mod
 	UndertaleCode modCode = ModData.Code.ByName(assetName);
 	string outPath = Path.Combine(sourcePath, modCode.Name.Content + ".gml");
     try {
-        File.WriteAllText(outPath, (modCode != null ? Decompiler.Decompile(modCode, DECOMPILE_CONTEXT.Value) : ""));
+		GlobalDecompileContext context = new GlobalDecompileContext(ModData, true);
+        File.WriteAllText(outPath, (modCode != null ? Decompiler.Decompile(modCode, context) : ""));
     }
-    catch (Exception e) {
-        // File.WriteAllText(outPath, "/*\nDECOMPILER FAILED!\n\n" + e.ToString() + "\n*/");
-		// ScriptMessage(String.Format("ERROR: Failed to decompile code entry {0}", assetName));
+    catch (Exception e)
+	{
+		CodeThatCouldNotBeDecompiled.Add(modCode.Name.Content);
+        File.WriteAllText(outPath, "/*\nDECOMPILER FAILED!\n\n" + e.ToString() + "\n*/");
+        ScriptMessage(String.Format("ERROR: Failed to decompile code entry {0}", assetName));
+	}
+}
+
+void AddCodeThatGotErrors(List<string> splitStringsList, string pathToExtract) {
+    if (ModDataPath == null)
+    {
+        throw new System.Exception("The mod's data path was not set.");
     }
+
+    using (var stream = new FileStream(ModDataPath, FileMode.Open, FileAccess.Read))
+    {
+        ModData = UndertaleIO.Read(stream, warning => ScriptMessage("A warning occured while trying to load " + ModDataPath + ":\n" + warning));
+    }
+
+
+    if (ModData.IsYYC())
+    {
+        ScriptError("You cannot do a code dump of a YYC game! There is no code to dump!");
+        return;
+    }
+
+    ThreadLocal<GlobalDecompileContext> DECOMPILE_CONTEXT = new ThreadLocal<GlobalDecompileContext>(() => new GlobalDecompileContext(ModData, true));
+
+
+    if (pathToExtract == null)
+        throw new ScriptException("The export folder was not set.");
+    Directory.CreateDirectory(pathToExtract);
+
+    List<String> codeToDump = new List<String>();
+    List<String> gameObjectCandidates = new List<String>();
+
+    for (var j = 0; j < splitStringsList.Count; j++)
+    {
+        foreach (UndertaleGameObject obj in ModData.GameObjects)
+        {
+            if (splitStringsList[j].ToLower() == obj.Name.Content.ToLower())
+            {
+                gameObjectCandidates.Add(obj.Name.Content);
+            }
+        }
+        foreach (UndertaleScript scr in ModData.Scripts)
+        {
+            if (scr.Code == null)
+                continue;
+            if (splitStringsList[j].ToLower() == scr.Name.Content.ToLower())
+            {
+                codeToDump.Add(scr.Code.Name.Content);
+            }
+        }
+        foreach (UndertaleGlobalInit globalInit in ModData.GlobalInitScripts)
+        {
+            if (globalInit.Code == null)
+                continue;
+            if (splitStringsList[j].ToLower() == globalInit.Code.Name.Content.ToLower())
+            {
+                codeToDump.Add(globalInit.Code.Name.Content);
+            }
+        }
+        foreach (UndertaleCode code in ModData.Code)
+        {
+            if (splitStringsList[j].ToLower() == code.Name.Content.ToLower())
+            {
+                codeToDump.Add(code.Name.Content);
+            }
+        }
+    }
+
+    for (var j = 0; j < gameObjectCandidates.Count; j++)
+    {
+        try
+        {
+            UndertaleGameObject obj = ModData.GameObjects.ByName(gameObjectCandidates[j]);
+            for (var i = 0; i < obj.Events.Count; i++)
+            {
+                foreach (UndertaleGameObject.Event evnt in obj.Events[i])
+                {
+                    foreach (UndertaleGameObject.EventAction action in evnt.Actions)
+                    {
+                        if (action.CodeId?.Name?.Content != null)
+                            codeToDump.Add(action.CodeId?.Name?.Content);
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Something went wrong, but probably because it's trying to check something non-existent
+            // Just keep going
+        }
+    }
+
+
+    for (var j = 0; j < codeToDump.Count; j++)
+    {
+        UndertaleCode code = ModData.Code.ByName(codeToDump[j]);
+        string path = Path.Combine(pathToExtract, code.Name.Content + ".gml");
+        if (code.ParentEntry == null)
+        {
+            try
+            {
+                File.WriteAllText(path, (code != null ? Decompiler.Decompile(code, DECOMPILE_CONTEXT.Value) : ""));
+            }
+            catch (Exception e)
+            {
+                if (!(Directory.Exists(Path.Combine(pathToExtract, "Failed"))))
+                {
+                    Directory.CreateDirectory(Path.Combine(pathToExtract, "Failed"));
+                }
+                path = Path.Combine(pathToExtract, "Failed", code.Name.Content + ".gml");
+                File.WriteAllText(path, "/*\nDECOMPILER FAILED!\n\n" + e.ToString() + "\n*/");
+            }
+        }
+        else
+        {
+            if (!(Directory.Exists(Path.Combine(pathToExtract, "Duplicates"))))
+            {
+                Directory.CreateDirectory(Path.Combine(pathToExtract, "Duplicates"));
+            }
+            try
+            {
+                path = Path.Combine(pathToExtract, "Duplicates", code.Name.Content + ".gml");
+                File.WriteAllText(path, (code != null ? Decompiler.Decompile(code, DECOMPILE_CONTEXT.Value).Replace("@@This@@()", "self/*@@This@@()*/") : ""));
+            }
+            catch (Exception e)
+            {
+                if (!(Directory.Exists(Path.Combine(pathToExtract, "Duplicates", "Failed"))))
+                {
+                    Directory.CreateDirectory(Path.Combine(pathToExtract, "Duplicates", "Failed"));
+                }
+                path = Path.Combine(pathToExtract, "Duplicates", "Failed", code.Name.Content + ".gml");
+                File.WriteAllText(path, "/*\nDECOMPILER FAILED!\n\n" + e.ToString() + "\n*/");
+            }
+        }
+
+
+    }
+
+
+
 }
 
 void AddSpriteData (string assetName, UndertaleData VanillaData, UndertaleData ModData) {
@@ -1463,20 +1601,28 @@ class TempDataContainer {
 	public IList<UndertaleGameObject> GameObjects;
 }
 
-async Task CompareAllCodeAsync(List<UndertaleCode> importantVanillaCode, List<UndertaleCode> importantModCode, TempDataContainer tempVanillaData, TempDataContainer tempModData) {
-    await Task.Run(() => Parallel.ForEach(importantModCode,     code => CompareCodeForAddition(code, tempVanillaData, tempModData)));
-    await Task.Run(() => Parallel.ForEach(importantVanillaCode, code => CompareCodeForRemoval(code, tempVanillaData, tempModData)));
+
+
+void CompareAllCode(List<UndertaleCode> importantVanillaCode, List<UndertaleCode> importantModCode, TempDataContainer tempVanillaData, TempDataContainer tempModData, UndertaleData VanillaData, UndertaleData ModData) {
+    foreach (UndertaleCode code in importantModCode) {
+		CompareCodeForAddition(code, tempVanillaData, tempModData, VanillaData, ModData);
+    }
+	
+    foreach (UndertaleCode code in importantVanillaCode)  {
+		CompareCodeForRemoval(code, tempVanillaData, tempModData);
+    }
 }
 
-void CompareCodeForAddition(UndertaleCode modCode, TempDataContainer tempVanillaData, TempDataContainer tempModData) {
+void CompareCodeForAddition(UndertaleCode modCode, TempDataContainer tempVanillaData, TempDataContainer tempModData, UndertaleData VanillaData, UndertaleData ModData) {
 	UndertaleCode vanillaCode = tempVanillaData.Code.ByName(modCode.Name.Content);
 	if (vanillaCode == null) {
-		lock (AssetsAddedDict) {
-			AssetsAddedDict.Add(modCode.Name.Content, AssetType.Code);
+		if (!AssetsAlteredDataDict.ContainsKey(modCode.Name.Content)) {
+			AssetsAlteredDataDict.Add(modCode.Name.Content, AssetType.Code);
 		}
 	} else {
-		if (!CodeEquals(vanillaCode, modCode)) {
-			lock (AssetsAlteredDataDict) {
+		
+		if (!CodeEquals(vanillaCode, modCode, VanillaData, ModData)) {
+			if (!AssetsAlteredDataDict.ContainsKey(modCode.Name.Content)) {
 				AssetsAlteredDataDict.Add(modCode.Name.Content, AssetType.Code);
 			}
 		}
@@ -1486,9 +1632,7 @@ void CompareCodeForAddition(UndertaleCode modCode, TempDataContainer tempVanilla
 void CompareCodeForRemoval(UndertaleCode vanillaCode, TempDataContainer tempVanillaData, TempDataContainer tempModData) {
 	UndertaleCode modCode = tempModData.Code.ByName(vanillaCode.Name.Content);
 	if (modCode == null) {
-		lock (AssetsRemovedDict) {
-			AssetsRemovedDict.Add(vanillaCode.Name.Content, AssetType.Code);
-		}
+		AssetsRemovedDict.Add(vanillaCode.Name.Content, AssetType.Code);
 	}
 }
 
@@ -1641,6 +1785,7 @@ void CompareFontForRemoval(UndertaleFont vanillaFont, TempDataContainer tempVani
 }
 
 
+
 void CompareGameFiles(UndertaleData VanillaData, UndertaleData ModData) {
 	TempDataContainer tempVanillaData = new TempDataContainer();
 	TempDataContainer tempModData = new TempDataContainer();
@@ -1680,37 +1825,40 @@ void CompareGameFiles(UndertaleData VanillaData, UndertaleData ModData) {
 	}
 	// Check all of the assets for diffs.
 	// Code
-	Task.Run(async () =>
-    {
-        await CompareAllCodeAsync(importantVanillaCode, importantModCode, tempVanillaData, tempModData);
-    }).Wait();
+    CompareAllCode(importantVanillaCode, importantModCode, tempVanillaData, tempModData, VanillaData, ModData);
 
 	// Sound
+	UpdateProgressBar("Comparing Game Files", "Comparing Sound... (Step 2/8)", 2, 8);
 	Task.Run(async () =>
     {
         await CompareAllSoundsAsync(tempVanillaData, tempModData);
     }).Wait();
-	UpdateProgressBar("Comparing Game Files", "Comparing Sound... (Step 2/8)", 2, 8);
+	
 	// Sprites
 	UpdateProgressBar("Comparing Game Files", "Comparing Sprites... (Step 3/8)", 3, 8);
 	Task.Run(async () =>
     {
         await CompareAllSpritesAsync(tempVanillaData, tempModData);
     }).Wait();
+	
 	// Backgrounds
 	UpdateProgressBar("Comparing Game Files", "Comparing Backgrounds... (Step 4/8)", 4, 8);
 	Task.Run(async () =>
     {
         await CompareAllBackgroundsAsync(tempVanillaData, tempModData);
     }).Wait();
+	
 	// Fonts
 	UpdateProgressBar("Comparing Game Files", "Comparing Fonts... (Step 5/8)", 5, 8);
 	Task.Run(async () =>
     {
         await CompareAllFontsAsync(tempVanillaData, tempModData);
     }).Wait();
+	
 	// Paths
 	UpdateProgressBar("Comparing Game Files", "Comparing Paths... (Step 6/8)", 6, 8);
+
+	
 	foreach (UndertalePath modPath in tempModData.Paths) {
 		UndertalePath vanillaPath = tempVanillaData.Paths.ByName(modPath.Name.Content);
 		if (vanillaPath == null) {
@@ -1768,17 +1916,49 @@ void CompareGameFiles(UndertaleData VanillaData, UndertaleData ModData) {
 	}
 }
 
+
+
 // Buncha methods for doing equality tests on various types of data in UMT,
 // And collections/subsets of said data.
 
-bool CodeEquals(UndertaleCode codeA, UndertaleCode codeB) {
+bool CodeEquals(UndertaleCode codeA, UndertaleCode codeB, UndertaleData VanillaData, UndertaleData ModData) {
 	try {
-		string decompA = (codeA != null ? Decompiler.Decompile(codeA, DECOMPILE_CONTEXT.Value) : "");
-		string decompB = (codeB != null ? Decompiler.Decompile(codeB, DECOMPILE_CONTEXT.Value) : "");
+		GlobalDecompileContext contextA = new GlobalDecompileContext(VanillaData, true);
+		GlobalDecompileContext contextB = new GlobalDecompileContext(ModData    , true);
+		
+		string decompA = (codeA != null ? Decompiler.Decompile(codeA, contextA) : "");
+		string decompB = (codeB != null ? Decompiler.Decompile(codeB, contextB) : "");
+
 		return decompA.Equals(decompB);
 	} catch (Exception e) {
 		// ScriptMessage(String.Format("ERROR: Failed to decompile code entry {0}", codeA.Name.Content));
 		return true; // if we can't decomp, we just assume scripts are the same.
+	}
+}
+
+bool MagickImageEquals(IMagickImage<byte> imgA, IMagickImage<byte> imgB) {
+	// Simplistic image comparison method, reliant on comparing pixel streams.
+	if (imgA != imgB) {
+		if (imgA != null && imgB != null) {
+			IPixelCollection<byte> pixelsA = imgA.GetPixels();
+			IPixelCollection<byte> pixelsB = imgB.GetPixels();
+			if (imgA.Width == imgB.Width && imgA.Height == imgB.Height) {
+				for (int i = 0; i < imgA.Width; i++) {
+					for (int j = 0; j < imgA.Height; j++) {
+						if (!pixelsA.GetPixel(i, j).Equals(pixelsB.GetPixel(i, j))) {
+							return false;
+						}
+					}
+				}
+				return true;
+			} else {
+				return false;
+			}
+		} else {
+			return false;
+		}
+	} else {
+		return true;
 	}
 }
 
@@ -1833,9 +2013,9 @@ bool FrameEquals (UndertaleSprite.TextureEntry texEntryA, UndertaleSprite.Textur
 			if (texEntryA.Texture == null || texEntryB.Texture == null) {
 				return false;
 			}
-			Bitmap bitmapA = worker.GetTextureFor(texEntryA.Texture, "<CmpTexture>");
-			Bitmap bitmapB = worker.GetTextureFor(texEntryB.Texture, "<CmpTexture>");
-			return BitmapEquals(bitmapA, bitmapB);
+			IMagickImage<byte> imgA = worker.GetTextureFor(texEntryA.Texture, "<CmpTexture>");
+			IMagickImage<byte> imgB = worker.GetTextureFor(texEntryB.Texture, "<CmpTexture>");
+			return MagickImageEquals(imgA, imgB);
 		}
 	}
 	return true;
@@ -1847,38 +2027,14 @@ bool MaskEquals (UndertaleSprite.MaskEntry maskA, UndertaleSprite.MaskEntry mask
 	return string.Equals(maskA64, maskB64);
 }
 
-bool BitmapEquals (Bitmap bitmapA, Bitmap bitmapB) {
-	if (bitmapA.Width != bitmapB.Width || bitmapA.Height != bitmapB.Height) {
-		return false;
-	}
-	
-	byte[] bitmapABytes;
-	byte[] bitmapBBytes;
-
-	using(var mstream = new MemoryStream()) {
-		bitmapA.Save(mstream, ImageFormat.Bmp);
-		bitmapABytes = mstream.ToArray();
-	}
-
-	using(var mstream = new MemoryStream()) {
-		bitmapB.Save(mstream, ImageFormat.Bmp);
-		bitmapBBytes = mstream.ToArray();
-	}
-		
-	var bitmapA64 = Convert.ToBase64String(bitmapABytes);
-	var bitmapB64 = Convert.ToBase64String(bitmapBBytes);
-	
-	return string.Equals(bitmapA64, bitmapB64);
-}
-
 bool BackgroundTextureEquals (UndertaleBackground backgroundA, UndertaleBackground backgroundB) {
 	if (backgroundA.Texture != backgroundB.Texture) {
 		if (backgroundA.Texture == null || backgroundB.Texture == null) {
 			return false;
 		}
-		Bitmap bitmapA = worker.GetTextureFor(backgroundA.Texture, "<CmpTexture>");
-		Bitmap bitmapB = worker.GetTextureFor(backgroundB.Texture, "<CmpTexture>");
-		return BitmapEquals(bitmapA, bitmapB);
+		IMagickImage<byte> imgA = worker.GetTextureFor(backgroundA.Texture, "<CmpTexture>");
+		IMagickImage<byte> imgB = worker.GetTextureFor(backgroundB.Texture, "<CmpTexture>");
+		return MagickImageEquals(imgA, imgB);
 	}
 	return true;
 }
@@ -1914,9 +2070,9 @@ bool FontTextureEquals (UndertaleFont fontA, UndertaleFont fontB) {
 		if (fontA.Texture == null || fontB.Texture == null) {
 			return false;
 		}
-		Bitmap bitmapA = worker.GetTextureFor(fontA.Texture, "<CmpTexture>");
-		Bitmap bitmapB = worker.GetTextureFor(fontB.Texture, "<CmpTexture>");
-		return BitmapEquals(bitmapA, bitmapB);
+		IMagickImage<byte> imgA = worker.GetTextureFor(fontA.Texture, "<CmpTexture>");
+		IMagickImage<byte> imgB = worker.GetTextureFor(fontB.Texture, "<CmpTexture>");
+		return MagickImageEquals(imgA, imgB);
 	}
 	return true;
 }
@@ -2053,6 +2209,14 @@ bool GameObjectEquals(UndertaleGameObject objectA, UndertaleGameObject objectB) 
 	return true;
 }
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//  MAIN CODE BODY ////  MAIN CODE BODY ////  MAIN CODE BODY ////  MAIN CODE BODY ////  MAIN CODE BODY ////  MAIN CODE BODY ////  MAIN CODE BODY //
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 ScriptMessage("Select the vanilla game's data.win");
 
 UndertaleData VanillaData;
@@ -2065,8 +2229,8 @@ using (var stream = new FileStream(VanillaDataPath, FileMode.Open, FileAccess.Re
 	VanillaData = UndertaleIO.Read(stream, warning => ScriptMessage("A warning occured while trying to load " + VanillaDataPath + ":\n" + warning));
 }
 // If true, will throw an error if a size mismatch occurs.
-ScriptMessage("Select the your modded game's data.win");
 
+ScriptMessage("Select the modded game's data.win");
 UndertaleData ModData;
 string ModDataPath = PromptLoadFile(null, null);
 if (ModDataPath == null) {
@@ -2079,6 +2243,7 @@ using (var stream = new FileStream(ModDataPath, FileMode.Open, FileAccess.Read))
 
 ScriptMessage("Select the patch output directory");
 string PatchOutputPath = PromptChooseDirectory("Export to where");
+
 if (PatchOutputPath == null) {
 	throw new System.Exception("The patch's output path was not set.");
 }
@@ -2124,20 +2289,19 @@ if (ModData.GeneralInfo.Major != VanillaData.GeneralInfo.Major) {
 }
 
 // Audio Checks
-
 if ((ModData.AudioGroups.ByName("audiogroup_default") == null) && ModData.GeneralInfo.Major >= 2) {
-    throw new Exception("Vanilla data file has no \"audiogroup_default\" but it is GMS2 or greater. AudioGroups count: " + Data.AudioGroups.Count.ToString());
+    throw new Exception("Vanilla data file has no \"audiogroup_default\" but it is GMS2 or greater. AudioGroups count: " + ModData.AudioGroups.Count.ToString());
 }
 if ((VanillaData.AudioGroups.ByName("audiogroup_default") == null) && VanillaData.GeneralInfo.Major >= 2) {
-    throw new Exception("Mod data file has no \"audiogroup_default\" but it is GMS2 or greater. AudioGroups count: " + Data.AudioGroups.Count.ToString());
+    throw new Exception("Mod data file has no \"audiogroup_default\" but it is GMS2 or greater. AudioGroups count: " + ModData.AudioGroups.Count.ToString());
 }
-
-
 
 UpdateProgressBar("Comparing Game Files", "Comparing Code... (Step 1/8)", 1, 8);
 CompareGameFiles(VanillaData, ModData);
 UpdateProgressBar("Creating Patch", "Creating Patch Files from Differences...", 1, 1);
 ExportPatchData(PatchOutputPath, VanillaData, ModData);
+
+AddCodeThatGotErrors(CodeThatCouldNotBeDecompiled, sourcePath);
 bool forceMatchingSpriteSize = ScriptQuestion(".cfg Creation\n\nWould you like to enable force_matching_sprite_size?\nThis can be helpful for debugging, as it will throw an error if there is a mismatch between sprite sizes while applying a patch.");
 
 
