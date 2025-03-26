@@ -1,6 +1,7 @@
 // HgPatcher - a universal patching format for GML.
-// By https://github.com/SolventMercury
-// Based off work by Jockeholm and Samuel Roy
+// This script is used to apply a patch to an opened data.win.
+// The file must still be saved to disc after the script finishes for changes to be kept.
+// Made by https://github.com/SolventMercury with contributions from Jockeholm
 // Uses code from https://github.com/mfascia/TexturePacker
 
 using System;
@@ -14,6 +15,10 @@ using System.Text.Json;
 using UndertaleModLib.Util;
 using UndertaleModLib.Models;
 using static UndertaleModLib.Models.UndertaleSprite;
+
+using System.Threading;
+using System.Threading.Tasks;
+using ImageMagick;
 
 enum EventTypes {
     Create,
@@ -213,7 +218,7 @@ UndertaleGameObject.EventAction ReadAction(ref Utf8JsonReader reader) {
 	if (actionName == null) {
 		newAction.ActionName  = null;
 	} else {
-		newAction.ActionName  = new UndertaleString(actionName);
+		newAction.ActionName  = Data.Strings.MakeString(actionName);
 	}
 	
 	if (codeId == null) {
@@ -307,7 +312,7 @@ void ReadRoomMainVals(ref Utf8JsonReader reader, UndertaleRoom newRoom) {
 	newRoom.MetersPerPixel      = ReadFloat(ref reader);
 	
 	if (caption != null) {
-		newRoom.Caption = new UndertaleString(caption);
+		newRoom.Caption = Data.Strings.MakeString(caption);
 		ScriptMessage(String.Format("caption is {0}", caption));
 	}
 	
@@ -341,8 +346,6 @@ void ReadBackgrounds (ref Utf8JsonReader reader, UndertaleRoom newRoom) {
 			string bgDefName = ReadString(ref reader);
 			newBg.X          = (int)ReadNum(ref reader);
 			newBg.Y          = (int)ReadNum(ref reader);
-			newBg.TileX      = (int)ReadNum(ref reader);
-			newBg.TileY      = (int)ReadNum(ref reader);
 			newBg.SpeedX     = (int)ReadNum(ref reader);
 			newBg.SpeedY     = (int)ReadNum(ref reader);
 			newBg.Stretch    = ReadBool(ref reader);
@@ -471,7 +474,7 @@ void ReadTiles (ref Utf8JsonReader reader, UndertaleRoom newRoom) {
 			UndertaleRoom.Tile newTile = new UndertaleRoom.Tile();
 			
 			
-			newTile._SpriteMode = ReadBool(ref reader);
+			//newTile._SpriteMode = ReadBool(ref reader);
 			newTile.X           = (int)ReadNum(ref reader);
 			newTile.Y           = (int)ReadNum(ref reader);
 			
@@ -535,7 +538,7 @@ void ReadLayers (ref Utf8JsonReader reader, UndertaleRoom newRoom) {
 			if (layerName == null) {
 				newLayer.LayerName = null;
 			} else {
-				newLayer.LayerName = new UndertaleString(layerName);
+				newLayer.LayerName = Data.Strings.MakeString(layerName);
 			}
 			
 			
@@ -695,7 +698,7 @@ void ReadAssetsLayer(ref Utf8JsonReader reader, UndertaleRoom.Layer newLayer) {
 			UndertaleRoom.Tile newTile = new UndertaleRoom.Tile();
 			
 			
-			newTile._SpriteMode = ReadBool(ref reader);
+			//newTile._SpriteMode = ReadBool(ref reader);
 			newTile.X           = (int)ReadNum(ref reader);
 			newTile.Y           = (int)ReadNum(ref reader);
 			
@@ -760,7 +763,7 @@ void ReadAssetsLayer(ref Utf8JsonReader reader, UndertaleRoom.Layer newLayer) {
 			if (name == null) {
 				newSpr.Name = null;
 			} else {
-				newSpr.Name = new UndertaleString(name);
+				newSpr.Name = Data.Strings.MakeString(name);
 			}
 			
 			if (spriteName == null) {
@@ -806,7 +809,7 @@ void ReadAssetsLayer(ref Utf8JsonReader reader, UndertaleRoom.Layer newLayer) {
 			if (name == null) {
 				newSeq.Name = null;
 			} else {
-				newSeq.Name = new UndertaleString(name);
+				newSeq.Name = Data.Strings.MakeString(name);
 			}
 			
 			if (sequenceName == null) {
@@ -851,7 +854,7 @@ void ReadAssetsLayer(ref Utf8JsonReader reader, UndertaleRoom.Layer newLayer) {
 			if (name == null) {
 				newSpr.Name = null;
 			} else {
-				newSpr.Name = new UndertaleString(name);
+				newSpr.Name = Data.Strings.MakeString(name);
 			}
 			
 			if (spriteName == null) {
@@ -1026,11 +1029,250 @@ void ReadAnticipateEndArray(ref Utf8JsonReader reader) {
 	throw new Exception("ERROR: Did not find value of expected type. Expected String.");
 }
 
-void BasicCodeImport(string srcPath) {
-	string[] dirFiles = Directory.GetFiles(srcPath);
-	foreach (string file in dirFiles) {
-		ImportGMLFile(file, true);
+
+
+
+List<string> CompareLists(List<string> listA, List<string> listB)
+{
+    List<string> listC = new List<string>();
+    for (int i = 0; i < listA.Count; ++i)
+    {
+        var isFound = false;
+        for (int j = 0; j < listB.Count; ++j)
+        {
+            if (listA[i] == listB[j])
+            {
+                //listC.Add(listA[i]);
+                isFound = true;
+                break;
+            }
+        }
+        if (isFound)
+        {
+            //listC.Add(listA[i]);
+        }
+        else
+        {
+            listC.Add(listA[i]);
+        }
+    }
+    return listC;
+}
+
+List<string> CompareListsByExcluding(List<string> listA, List<string> listB)
+{
+    return listB.Except(listA).ToList();
+}
+
+List<string> CompareListsByMerging(List<string> listA, List<string> listB)
+{
+    return listB.Intersect(listA).ToList();
+}
+
+string ReadGMLFile(string filePath)
+{
+    return File.ReadAllText(filePath);
+}
+
+
+int CheckIfStringExistInList(List<string> target, string stringToSearch)
+{
+	var isHere = -1;
+	string temp = "";
+	for(int i = 0; i < target.Count; ++i)
+	{
+		temp = Path.GetFileName(stringToSearch);
+		temp = temp.Remove(temp.Length - 4);
+		if(target[i] == temp)
+		{
+			return i;
+		}
 	}
+	return -1;
+}
+
+void CreateTempCodeFile(string fileName, string text) 
+{
+        string path = "Temp_Code/" + fileName + ".gml"; // specify the subfolder
+        File.WriteAllText(path, text); // write the text to the file
+}
+
+string GetCompletePath(string fileName)
+{
+    string path = Environment.CurrentDirectory;
+    return Path.Combine(path, fileName);
+}
+
+string PatchStringProperly_AppendMode(string textA, string textB)
+{
+    if (textA.Length > textB.Length && textA.Length >= 1 && textB.Length >= 1)
+    {
+        string textC = "";
+        int j = 0;
+        for (int i = 0; i < textA.Length; ++i)
+        {
+			//Error happen if the modder didn't followed the modding guide correctly so appending code won't be possible, return and make the file simply overwrite
+			if(i >= textA.Length)
+			{
+				return "";
+				throw new Exception(String.Format("The i index is out of bound, index had the value of {0}, YOU PROBABLY DELETED LINES OF CODES IN YOUR MODE WHICH CAN'T BE APPENDED", i.ToString()));
+			}
+			if(j >= textB.Length)
+			{
+				return "";
+				throw new Exception(String.Format("The j index is out of bound, index had the value of {0}, YOU PROBABLY DELETED LINES OF CODES IN YOUR MODE WHICH CAN'T BE APPENDED", j.ToString()));
+			}
+
+            if (textA[i] == textB[j])
+            {
+                textC = textC + textA[i];
+                ++j;
+            }
+            else
+            {
+                textC = textC + textA[i];
+            }
+        }
+
+        return textC;
+    }
+
+    return "";
+}
+
+void CreateDirectory(string folderPath)
+{
+    if (!Directory.Exists(folderPath))
+    {
+        Directory.CreateDirectory(folderPath);
+    }
+}
+
+void BasicCodeImport(string srcPath, List<string> AddedCodeFromMod) {
+	string[] dirFiles = Directory.GetFiles(srcPath);
+	string modDir = "";
+	string tempDir = "";
+
+	modDir = Path.GetDirectoryName(dirFiles[0]);
+
+	tempDir = Directory.GetCurrentDirectory() + "\\" + "Temp_Code";
+
+	CreateDirectory(tempDir);
+
+
+
+	EnsureDataLoaded();
+	ThreadLocal<GlobalDecompileContext> DECOMPILE_CONTEXT = new ThreadLocal<GlobalDecompileContext>(() => new GlobalDecompileContext(Data, false));
+	List<String> codeToDump = new List<String>();
+	List<String> gameObjectCandidates = new List<String>();
+	List<String> splitStringsList = new List<String>();
+	string InputtedText = "";
+
+	DumpCode(AddedCodeFromMod, tempDir);
+
+	int verif = -1;
+	int debugCounter = 0;
+	foreach (string file in dirFiles) {
+		verif = CheckIfStringExistInList(AddedCodeFromMod, file);
+		string pathToImport = file;
+
+		if(verif >= 0)
+		{
+			string fileA = File.ReadAllText(modDir + "\\" + AddedCodeFromMod[verif] + ".gml");
+			string fileB = File.ReadAllText(tempDir + "\\" + AddedCodeFromMod[verif] + ".gml");
+
+			if(fileA.Length > fileB.Length)
+			{
+				string overWriteString = PatchStringProperly_AppendMode(fileA, fileB);
+				if(overWriteString != "")
+				{
+					CreateTempCodeFile(AddedCodeFromMod[verif], overWriteString);
+					pathToImport = tempDir + "\\" + AddedCodeFromMod[verif] + ".gml";
+				}
+				
+				/*
+				if(debugCounter == 3)
+				{
+					ScriptMessage("fila A:\n" + fileA);
+					ScriptMessage("fila B:\n" + fileB);
+					ScriptMessage("overWrite:\n" + overWriteString);
+				}
+				debugCounter++;
+				*/
+			}
+		}
+		ImportGMLFile(pathToImport, true);
+	}
+	
+	//Uncomment if you need to debug
+	Directory.Delete(tempDir, true);
+}
+
+void DumpCode(List<string> AddedCodeFromMod, string extractPath)
+{
+	EnsureDataLoaded();
+	ThreadLocal<GlobalDecompileContext> DECOMPILE_CONTEXT = new ThreadLocal<GlobalDecompileContext>(() => new GlobalDecompileContext(Data, false));
+    string path = "";
+	int failed = 0;
+
+	List<string> OverWriteErrorList = new List<string>();
+	for(int i =0; i < AddedCodeFromMod.Count; ++i)
+	{
+		var code = Data.Code.ByName(AddedCodeFromMod[i]);
+		path = Path.Combine(extractPath, code.Name.Content + ".gml");
+		if (code.ParentEntry == null)
+		{
+			try
+			{
+				File.WriteAllText(path, (code != null ? Decompiler.Decompile(code, DECOMPILE_CONTEXT.Value) : ""));
+			}
+			catch (Exception e)
+			{
+				
+				//if (!(Directory.Exists(Path.Combine(extractPath, "Failed"))))
+				//{
+				//	Directory.CreateDirectory(Path.Combine(extractPath, "Failed"));
+				//}
+				//path = Path.Combine(extractPath, "Failed", code.Name.Content + ".gml");
+				//File.WriteAllText(path, "/*\nDECOMPILER FAILED!\n\n" + e.ToString() + "\n*/");
+				OverWriteErrorList.Add(code.Name.Content);
+				AddedCodeFromMod.RemoveAt(i);
+				i--;
+				failed++;
+			}
+		}
+		else
+		{
+			if (!(Directory.Exists(Path.Combine(extractPath, "Duplicates"))))
+			{
+				Directory.CreateDirectory(Path.Combine(extractPath, "Duplicates"));
+			}
+			try
+			{
+				path = Path.Combine(extractPath, "Duplicates", code.Name.Content + ".gml");
+				File.WriteAllText(path, (code != null ? Decompiler.Decompile(code, DECOMPILE_CONTEXT.Value).Replace("@@This@@()", "self/*@@This@@()*/") : ""));
+			}
+			catch (Exception e)
+			{
+				//if (!(Directory.Exists(Path.Combine(extractPath, "Duplicates", "Failed"))))
+				//{
+				//	Directory.CreateDirectory(Path.Combine(extractPath, "Duplicates", "Failed"));
+				//}
+				//path = Path.Combine(extractPath, "Duplicates", "Failed", code.Name.Content + ".gml");
+				//File.WriteAllText(path, "/*\nDECOMPILER FAILED!\n\n" + e.ToString() + "\n*/");
+				OverWriteErrorList.Add(code.Name.Content);
+				AddedCodeFromMod.RemoveAt(i);
+				i--;
+				failed++;
+			}
+		}
+	}
+	if(failed >= 1)
+	{
+		string errorString = String.Join('\n', OverWriteErrorList.ToArray());
+		System.Diagnostics.Debugger.Break();
+		ScriptMessage("/!\\   WARNING   /!\\\n" + failed.ToString() + " files could not me correctly overwrited.\n" + errorString);
+	}    
 }
 
 // For importing GML 2.3 code
@@ -1114,7 +1356,8 @@ void AdvancedCodeImport(string srcPath) {
 			locals.Locals.Add(argsLocal);
 
 			code.LocalsCount = 1;
-			code.GenerateLocalVarDefinitions(code.FindReferencedLocalVars(), locals); // Dunno if we actually need this line, but it seems to work?
+			// EDIT: Commented this back out, it seems to break things.
+			//code.GenerateLocalVarDefinitions(code.FindReferencedLocalVars(), locals); // Dunno if we actually need this line, but it seems to work?
 			Data.CodeLocals.Add(locals);
 		}
 		if (doParse) {
@@ -1645,8 +1888,11 @@ int CountTotalFramesForNewSprite(string spritePath, string spriteName) {
 	
 	List<string> dirFiles = new List<string>(Directory.GetFiles(spritePath, "*.png"));
 	List<string> spriteFiles = new List<string>();
-	foreach (string filePath in dirFiles) {
-		if (filePath.Contains("_") && filePath.Contains(spriteName)) {
+	foreach (string filePath in dirFiles)
+	{
+		string extractedFilePathName = filePath.Substring(0, filePath.Length - 4);
+		extractedFilePathName = filePath.Substring(0, filePath.LastIndexOf('_'));
+		if (filePath.Contains("_") && extractedFilePathName == spriteName) {
 			spriteFiles.Add(filePath);
 		}
 	}
@@ -1769,14 +2015,20 @@ Dictionary<string, SpriteInfo> ImportSpriteInfo(string spriteInfoPath, bool forc
 					Data.Sprites.Add(newSprite);
 				} else {
 					if (currentSpriteInfo.SizeX != 0 || currentSpriteInfo.SizeY != 0) {
-						if (currentSpriteInfo.SizeX != sprite.Textures[0].Texture.TargetWidth || currentSpriteInfo.SizeY != sprite.Textures[0].Texture.TargetHeight) {
-							if (forceMatchingSpriteSize) {
-								throw new Exception(String.Format("ERROR: Patch set config option forceMatchingSpriteSize to true, but sprite size given for {0} doesn't match the size of the original sprite!", currentSpriteName));
+						//if(true)
+						if(sprite.Textures.Count >= 1) {
+							if (currentSpriteInfo.SizeX != sprite.Textures[0].Texture.TargetWidth || currentSpriteInfo.SizeY != sprite.Textures[0].Texture.TargetHeight) {
+								if (forceMatchingSpriteSize) {
+									throw new Exception(String.Format("ERROR: Patch set config option forceMatchingSpriteSize to true, but sprite size given for {0} doesn't match the size of the original sprite!", currentSpriteName));
+								}
+								if (!EnsureAllFramesReplaced(spritePath, currentSpriteName, sprite.Textures.Count, currentSpriteInfo.SizeX, currentSpriteInfo.SizeY)) {
+									throw new Exception(String.Format("ERROR: New sprite {0} has differing dimensions to the original, but did not replace every frame.", currentSpriteName));
+								}
 							}
-							if (!EnsureAllFramesReplaced(spritePath, currentSpriteName, sprite.Textures.Count, currentSpriteInfo.SizeX, currentSpriteInfo.SizeY)) {
-								throw new Exception(String.Format("ERROR: New sprite {0} has differing dimensions to the original, but did not replace every frame.", currentSpriteName));
-							}
+						} else {
+							//throw new Exception("ERROR: sprite texture array is empty");
 						}
+
 					}
 					
 					currentSpriteInfo.canOriginalFramesFitInPlace = (currentSpriteInfo.SizeX <= sprite.Width && currentSpriteInfo.SizeY <= sprite.Height);
@@ -2022,26 +2274,28 @@ void ImportTextures(string spritePath, string bgPath, string fntPath, Dictionary
 		
 		// Decide what to do with this sprite.
 		if (spriteInfo.canOriginalFramesFitInPlace && frameNumber < spriteInfo.originalNumFrames) {
-			// Write directly to texture
-			Bitmap bmp;
-            using (var ms = new MemoryStream(TextureWorker.ReadTextureBlob(spriteFile))) {
-                bmp = new Bitmap(ms);
-            }
-            bmp.SetResolution(96.0F, 96.0F);
+			MagickImageInfo imgInfo = new MagickImageInfo(spriteFile);
+			int imgWidth = imgInfo.Width;
+			int imgHeight = imgInfo.Height;
+			
+			MagickImage img;
+
 			// If bitmap is smaller than original, copy it onto a bigger image first.
-			if (bmp.Width < currentSprite.Width || bmp.Height < currentSprite.Height) {
-				Bitmap destBmp = new Bitmap((int)currentSprite.Width, (int)currentSprite.Height);
-				destBmp.SetResolution(96.0F, 96.0F);
-				using (Graphics grD = Graphics.FromImage(destBmp)) {
-					grD.DrawImage(bmp, 0, 0, bmp.Width, bmp.Height);
-				}
-				bmp = destBmp;
+			if (imgWidth < currentSprite.Width || imgHeight < currentSprite.Height) {
+				img = new MagickImage(spriteFile, (int)currentSprite.Width, (int)currentSprite.Height);
+			} else {
+				img = new MagickImage(spriteFile);
 			}
-			currentSprite.Textures[frameNumber].Texture.ReplaceTexture((Image)bmp);
+			
+			// Replace the texture.
+			currentSprite.Textures[frameNumber].Texture.ReplaceTexture(img);
 		} else {
 			// Queue up for later
 			textureNames.Add(spriteName);
-			texturesToPack.Add(spriteName, new TextureToPack(spriteName, spriteFile, TextureType.Sprite));
+			if(!texturesToPack.ContainsKey(spriteName))
+			{
+				texturesToPack.Add(spriteName, new TextureToPack(spriteName, spriteFile, TextureType.Sprite));
+			}
 		}
 	}
 	
@@ -2055,28 +2309,22 @@ void ImportTextures(string spritePath, string bgPath, string fntPath, Dictionary
 			textureNames.Add(bgName);
 			texturesToPack.Add(bgName, new TextureToPack(bgName, bgFile, TextureType.Background));
 		} else {
-		
-			Bitmap bmp;
-			using (var ms = new MemoryStream(TextureWorker.ReadTextureBlob(bgFile))) {
-				bmp = new Bitmap(ms);
-			}
-			bmp.SetResolution(96.0F, 96.0F);
+			MagickImage img = new MagickImage(bgFile);
 			
-			if ((bmp.Width == currentBg.Texture.BoundingWidth && bmp.Height == currentBg.Texture.BoundingHeight)) {
-				currentBg.Texture.ReplaceTexture((Image)bmp);
+			if ((img.Width == currentBg.Texture.BoundingWidth && img.Height == currentBg.Texture.BoundingHeight)) {
+				currentBg.Texture.ReplaceTexture(img);
 			} else {
 				if (forceMatchingSpriteSize) {
 					throw new Exception(String.Format("ERROR: forceMatchingSpriteSize has been configured to be true, but background {0} has a non-matching sprite size!", bgFile));
 				}
-				if (bmp.Width <= currentBg.Texture.BoundingWidth && bmp.Height <= currentBg.Texture.BoundingHeight) {
-					Bitmap destBmp = new Bitmap((int)currentBg.Texture.BoundingWidth, (int)currentBg.Texture.BoundingHeight);
-					destBmp.SetResolution(96.0F, 96.0F);
-					using (Graphics grD = Graphics.FromImage(destBmp)) {
-						grD.DrawImage(bmp, 0, 0, bmp.Width, bmp.Height);
-					}
-					bmp = destBmp;
-					currentBg.Texture.ReplaceTexture((Image)bmp);
-				} else if (bmp.Width > currentBg.Texture.BoundingWidth || bmp.Height > currentBg.Texture.BoundingHeight) {
+				if (img.Width <= currentBg.Texture.BoundingWidth && img.Height <= currentBg.Texture.BoundingHeight) {
+					MagickColor alphaCol = new MagickColor();
+					alphaCol.SetFromBytes(0, 0, 0, 0);
+					MagickImage destImg = new MagickImage(alphaCol, (int)currentBg.Texture.BoundingWidth, (int)currentBg.Texture.BoundingHeight);
+					destImg.Composite(img, 0, 0, CompositeOperator.Over);
+					img = destImg;
+					currentBg.Texture.ReplaceTexture(img);
+				} else if (img.Width > currentBg.Texture.BoundingWidth || img.Height > currentBg.Texture.BoundingHeight) {
 					textureNames.Add(bgName);
 					texturesToPack.Add(bgName, new TextureToPack(bgName, bgFile, TextureType.Background));
 				}
@@ -2091,27 +2339,22 @@ void ImportTextures(string spritePath, string bgPath, string fntPath, Dictionary
 			textureNames.Add(fntName);
 			texturesToPack.Add(fntName, new TextureToPack(fntName, fntFile, TextureType.Font));
 		} else {
-			Bitmap bmp;
-			using (var ms = new MemoryStream(TextureWorker.ReadTextureBlob(fntFile))) {
-				bmp = new Bitmap(ms);
-			}
-			bmp.SetResolution(96.0F, 96.0F);
+			MagickImage img = new MagickImage(fntFile);
 			
-			if ((bmp.Width == currentFnt.Texture.BoundingWidth && bmp.Height == currentFnt.Texture.BoundingHeight)) {
-				currentFnt.Texture.ReplaceTexture((Image)bmp);
+			if ((img.Width == currentFnt.Texture.BoundingWidth && img.Height == currentFnt.Texture.BoundingHeight)) {
+				currentFnt.Texture.ReplaceTexture(img);
 			} else {
 				if (forceMatchingSpriteSize) {
 					throw new Exception(String.Format("ERROR: forceMatchingSpriteSize has been configured to be true, but font {0} has a non-matching sprite size!", fntFile));
 				}
-				if (bmp.Width <= currentFnt.Texture.BoundingWidth && bmp.Height <= currentFnt.Texture.BoundingHeight) {
-					Bitmap destBmp = new Bitmap((int)currentFnt.Texture.BoundingWidth, (int)currentFnt.Texture.BoundingHeight);
-					destBmp.SetResolution(96.0F, 96.0F);
-					using (Graphics grD = Graphics.FromImage(destBmp)) {
-						grD.DrawImage(bmp, 0, 0, bmp.Width, bmp.Height);
-					}
-					bmp = destBmp;
-					currentFnt.Texture.ReplaceTexture((Image)bmp);
-				} else if (bmp.Width > currentFnt.Texture.BoundingWidth || bmp.Height > currentFnt.Texture.BoundingHeight) {
+				if (img.Width <= currentFnt.Texture.BoundingWidth && img.Height <= currentFnt.Texture.BoundingHeight) {
+					MagickColor alphaCol = new MagickColor();
+					alphaCol.SetFromBytes(0, 0, 0, 0);
+					MagickImage destImg = new MagickImage(alphaCol, (int)currentFnt.Texture.BoundingWidth, (int)currentFnt.Texture.BoundingHeight);
+					destImg.Composite(img, 0, 0, CompositeOperator.Over);
+					img = destImg;
+					currentFnt.Texture.ReplaceTexture(img);
+				} else if (img.Width > currentFnt.Texture.BoundingWidth || img.Height > currentFnt.Texture.BoundingHeight) {
 					textureNames.Add(fntName);
 					texturesToPack.Add(fntName, new TextureToPack(fntName, fntFile, TextureType.Font));
 				}
@@ -2149,19 +2392,27 @@ void ImportTextures(string spritePath, string bgPath, string fntPath, Dictionary
 	packer.Process(tempPath, searchPattern, textureSize, PaddingValue, debug);
 	packer.SaveAtlasses(outName);
 	
+	int lastTextPage = Data.EmbeddedTextures.Count - 1;
+	int lastTextPageItem = Data.TexturePageItems.Count - 1;
+	
 	// After that, create TexturePageEntries and link them to their appropriate resources
 	string prefix = outName.Replace(Path.GetExtension(outName), "");
 	int atlasCount = 0;
 	foreach (Atlas atlas in packer.Atlasses) {
 		string atlasName = String.Format(prefix + "{0:000}" + ".png", atlasCount);
-		Bitmap atlasBitmap = new Bitmap(atlasName);
+		MagickImage atlasImage = TextureWorker.ReadBGRAImageFromFile(atlasName);
+		IPixelCollection<byte> atlasPixels = atlasImage.GetPixels();
+		
 		UndertaleEmbeddedTexture texture = new UndertaleEmbeddedTexture();
-		texture.TextureData.TextureBlob = File.ReadAllBytes(atlasName);
+		texture.Name = new UndertaleString($"Texture {++lastTextPage}");
+		texture.TextureData.Image = GMImage.FromMagickImage(atlasImage).ConvertToPng();
+		
 		Data.EmbeddedTextures.Add(texture);
 		foreach (Node n in atlas.Nodes) {
 			if (n.Texture != null) {
 				// Initalize values of this texture
 				UndertaleTexturePageItem texturePageItem = new UndertaleTexturePageItem();
+				texturePageItem.Name = new UndertaleString($"PageItem {++lastTextPageItem}");
 				texturePageItem.SourceX = (ushort)n.Bounds.X;
 				texturePageItem.SourceY = (ushort)n.Bounds.Y;
 				texturePageItem.SourceWidth = (ushort)n.Bounds.Width;
@@ -2189,15 +2440,15 @@ void ImportTextures(string spritePath, string bgPath, string fntPath, Dictionary
 					spriteName = stripped.Substring(0, lastUnderscore);
 					frameNumber = Int32.Parse(stripped.Substring(lastUnderscore + 1));
 				}
-				
-				TextureType texType;
+                TextureType texType;
 				// Get our texture information to decide what kind of texture this is
 				if (texturesToPack.ContainsKey(stripped)) {
 					texType = texturesToPack[stripped].Type;
 				} else if (texturesToPack.ContainsKey(spriteName)) {
 					texType = texturesToPack[spriteName].Type;
 				} else {
-					throw new Exception(String.Format("ERROR: texture with filename {0} could not be matched to an asset.", n.Texture.Source));
+                    System.Diagnostics.Debugger.Break();
+                    throw new Exception(String.Format("ERROR: texture with filename {0} could not be matched to an asset.", n.Texture.Source));
 				}
 				
 				// Create TextureEntry and link it to appropriate resource
@@ -2206,39 +2457,51 @@ void ImportTextures(string spritePath, string bgPath, string fntPath, Dictionary
 						UndertaleSprite sprite = Data.Sprites.ByName(spriteName);
 						UndertaleSprite.TextureEntry texEntry = new UndertaleSprite.TextureEntry();
 						texEntry.Texture = texturePageItem;
+						
 
 						// Make default collision mask
-						// if (sprite.CollisionMasks.Count <= 0 || sprite.CollisionMasks[0] == null) {
-						// 	sprite.CollisionMasks.Add(sprite.NewMaskEntry());
-						// 	Rectangle bmpRect = new Rectangle(n.Bounds.X, n.Bounds.Y, n.Bounds.Width, n.Bounds.Height);
-						// 	System.Drawing.Imaging.PixelFormat format = atlasBitmap.PixelFormat;
-						// 	Bitmap cloneBitmap = atlasBitmap.Clone(bmpRect, format);
-						// 	int width = ((n.Bounds.Width + 7) / 8) * 8;
-						// 	BitArray maskingBitArray = new BitArray(width * n.Bounds.Height);
-						// 	for (int y = 0; y < n.Bounds.Height; y++) {
-						// 		for (int x = 0; x < n.Bounds.Width; x++)
-						// 		{
-						// 			Color pixelColor = cloneBitmap.GetPixel(x, y);
-						// 			maskingBitArray[y * width + x] = (pixelColor.A > 0);
-						// 		}
-						// 	}
-						// 	BitArray tempBitArray = new BitArray(width * n.Bounds.Height);
-						// 	for (int i = 0; i < maskingBitArray.Length; i += 8) {
-						// 		for (int j = 0; j < 8; j++)
-						// 		{
-						// 			tempBitArray[j + i] = maskingBitArray[-(j - 7) + i];
-						// 		}
-						// 	}
-						// 	int numBytes;
-						// 	numBytes = maskingBitArray.Length / 8;
-						// 	byte[] bytes = new byte[numBytes];
-						// 	tempBitArray.CopyTo(bytes, 0);
-						// 	for (int i = 0; i < bytes.Length; i++) {
-						// 		sprite.CollisionMasks[0].Data[i] = bytes[i];
-						// 	}
-						// }
-
-						sprite.Textures[frameNumber] = texEntry;
+						//if (sprite.CollisionMasks.Count <= 0 || sprite.CollisionMasks[0] == null) {
+						//	sprite.CollisionMasks.Add(sprite.NewMaskEntry());
+						//	Rectangle bmpRect = new Rectangle(n.Bounds.X, n.Bounds.Y, n.Bounds.Width, n.Bounds.Height);
+						//	System.Drawing.Imaging.PixelFormat format = atlasBitmap.PixelFormat;
+						//	Bitmap cloneBitmap = atlasBitmap.Clone(bmpRect, format);
+						//	int width = ((n.Bounds.Width + 7) / 8) * 8;
+						//	BitArray maskingBitArray = new BitArray(width * n.Bounds.Height);
+						//	for (int y = 0; y < n.Bounds.Height; y++) {
+						//		for (int x = 0; x < n.Bounds.Width; x++)
+						//		{
+						//			Color pixelColor = cloneBitmap.GetPixel(x, y);
+						//			maskingBitArray[y * width + x] = (pixelColor.A > 0);
+						//		}
+						//	}
+						//	BitArray tempBitArray = new BitArray(width * n.Bounds.Height);
+						//	for (int i = 0; i < maskingBitArray.Length; i += 8) {
+						//		for (int j = 0; j < 8; j++)
+						//		{
+						//			tempBitArray[j + i] = maskingBitArray[-(j - 7) + i];
+						//		}
+						//	}
+						//	int numBytes;
+						//	numBytes = maskingBitArray.Length / 8;
+						//	byte[] bytes = new byte[numBytes];
+						//	tempBitArray.CopyTo(bytes, 0);
+						//	for (int i = 0; i < bytes.Length; i++) {
+						//		sprite.CollisionMasks[0].Data[i] = bytes[i];
+						//	}
+						//}
+						if (frameNumber >= 0) {
+							for (int i = 0; i < frameNumber + 1; i++) {
+								if (sprite.Textures.Count <= i) {
+									sprite.Textures.Add(null);
+								}
+							}
+							
+							sprite.Textures[frameNumber] = texEntry;
+						} else {
+							throw new Exception("ERROR: invalid frame number " + frameNumber.ToString());
+						}
+						
+						
 						break;
 					case TextureType.Background:
 						UndertaleBackground bg = Data.Backgrounds.ByName(stripped);
@@ -2378,7 +2641,7 @@ void ImportBackgroundInfo(string bgInfoPath, bool forceMatchingSpriteSize) {
 		if (bg == null) {
 			BackgroundInfo bgInfo = new BackgroundInfo(bgName);
 			bg = new UndertaleBackground();
-			UndertaleString bgUTString = new UndertaleString(bgName);
+			UndertaleString bgUTString = Data.Strings.MakeString(bgName);
 			
 			bg.Name 		     = bgUTString;
 			bg.Transparent       = bgInfo.Transparent;
@@ -2400,7 +2663,7 @@ void ImportBackgroundInfo(string bgInfoPath, bool forceMatchingSpriteSize) {
 class FontInfo {
 	public string Name;
 	public string DisplayName = "Arial";
-	public uint FontSize = 12;
+	public float FontSize = 12.0f;
 	public bool Bold = false;
 	public bool Italic = false;
 	public ushort RangeStart = 32;
@@ -2528,7 +2791,7 @@ void ImportFontInfo(string fontInfoPath, bool forceMatchingSpriteSize) {
 		if (font == null) {
 			FontInfo fontInfo = new FontInfo(fontName);
 			font = new UndertaleFont();
-			UndertaleString fontUTString = new UndertaleString(fontName);
+			UndertaleString fontUTString = Data.Strings.MakeString(fontName);
 			
 			font.Name 		  = fontUTString;
 			font.DisplayName  = Data.Strings.MakeString(fontInfo.DisplayName);
@@ -2575,7 +2838,7 @@ void ImportFontInfo(string fontInfoPath, bool forceMatchingSpriteSize) {
 		if (font == null) {
 			FontInfo fontInfo = new FontInfo(fontName);
 			font = new UndertaleFont();
-			UndertaleString fontUTString = new UndertaleString(fontName);
+			UndertaleString fontUTString = Data.Strings.MakeString(fontName);
 			
 			font.Name 		  = fontUTString;
 			font.DisplayName  = Data.Strings.MakeString(fontInfo.DisplayName);
@@ -2684,7 +2947,7 @@ void ImportPaths(string pathInfoPath) {
 		if (path == null) {
 			PathInfo pathInfo = new PathInfo(pathName);
 			path = new UndertalePath();
-			UndertaleString pathUTString = new UndertaleString(pathName);
+			UndertaleString pathUTString = Data.Strings.MakeString(pathName);
 			
 			path.Name = pathUTString;
 			path.IsSmooth  = pathInfo.Smooth;
@@ -2722,16 +2985,25 @@ void ImportPaths(string pathInfoPath) {
 	}
 }
 
-void CreateHollowCode(string srcPath) {
+List<string> CreateHollowCode(string srcPath) {
     string[] srcFiles = Directory.GetFiles(srcPath, "*.gml");
+	List<string> overWriteData = new List<string>();
+
     foreach (string srcFile in srcFiles) {
         string assetName = Path.GetFileNameWithoutExtension(srcFile);
-        if (Data.Code.ByName(assetName) == null) {
-            UndertaleCode hollowCode = new UndertaleCode();
-            hollowCode.Name = new UndertaleString(assetName);
+		UndertaleCode hollowCode = new UndertaleCode();
+		hollowCode.Name = Data.Strings.MakeString(assetName);
+
+        if (Data.Code.ByName(assetName) == null)
+		{
             Data.Code.Add(hollowCode);
         }
+		else
+		{
+			overWriteData.Add(hollowCode.Name.Content);
+		}
     }
+	return overWriteData;
 }
 
 void CreateHollowRooms(string roomPath) {
@@ -2740,7 +3012,7 @@ void CreateHollowRooms(string roomPath) {
         string assetName = Path.GetFileNameWithoutExtension(roomFile);
         if (Data.Rooms.ByName(assetName) == null) {
             UndertaleRoom hollowRoom = new UndertaleRoom();
-            hollowRoom.Name = new UndertaleString(assetName);
+            hollowRoom.Name = Data.Strings.MakeString(assetName);
             Data.Rooms.Add(hollowRoom);
         }
     }
@@ -2752,7 +3024,7 @@ void CreateHollowGameObjects(string objPath) {
         string assetName = Path.GetFileNameWithoutExtension(objFile);
         if (Data.GameObjects.ByName(assetName) == null) {
             UndertaleGameObject hollowObj = new UndertaleGameObject();
-            hollowObj.Name = new UndertaleString(assetName);
+            hollowObj.Name = Data.Strings.MakeString(assetName);
             Data.GameObjects.Add(hollowObj);
         }
     }
@@ -3002,7 +3274,7 @@ void ImportSounds(string sndPath) {
 				UndertaleEmbeddedAudio embeddedAudio = null;
 				if (audioGroupData.EmbeddedAudio.Count - 1 < soundInData.AudioID) {
 					embeddedAudio = new UndertaleEmbeddedAudio();
-					embeddedAudio.Name = new UndertaleString(String.Format("EmbeddedSound {0} (UndertaleEmbeddedAudio)", soundInData.AudioID));
+					embeddedAudio.Name = Data.Strings.MakeString(String.Format("EmbeddedSound {0} (UndertaleEmbeddedAudio)", soundInData.AudioID));
 					embeddedAudio.Data = sndData;
 					while (audioGroupData.EmbeddedAudio.Count < soundInData.AudioID) {
 						audioGroupData.EmbeddedAudio.Add(new UndertaleEmbeddedAudio());
@@ -3026,7 +3298,7 @@ void ImportSounds(string sndPath) {
 			} else {
 				if (soundInData.AudioFile == null) {
 					UndertaleEmbeddedAudio newAudioFile = new UndertaleEmbeddedAudio();
-					newAudioFile.Name = new UndertaleString(String.Format("EmbeddedSound {0} (UndertaleEmbeddedAudio)", soundInData.AudioID));
+					newAudioFile.Name = Data.Strings.MakeString(String.Format("EmbeddedSound {0} (UndertaleEmbeddedAudio)", soundInData.AudioID));
 					Data.EmbeddedAudio.Add(newAudioFile);
 					soundInData.AudioFile = newAudioFile;
 				}
@@ -3120,12 +3392,23 @@ string pathInfoPath   = Path.Join(pathPath, "pathInfo.txt"); // I'm sure this na
 
 // Read each config variable we need
 bool forceMatchingSpriteSize = ReadCfgBool(cfgPath, "force_matching_sprite_size");
+forceMatchingSpriteSize = false;
 PatchVersionInfo patchVersion = ReadCfgVersion(cfgPath, "patch_version");
 
 // Get default Patch Version
 PatchVersionInfo scriptVersion = new PatchVersionInfo("1.0");
 
 bool continuePatch = true;
+
+// Give generic warning about cyber security.
+continuePatch = ScriptQuestion("Remember: Patches can be used to modify game code arbitrarily. Patches can potentially include malicious code capable of stealing your personal information, tracking your computer's activity, or destroying your data. Never install patches from untrusted sources!\n\nInstall this patch anyways?");
+
+if (!continuePatch) {
+	ScriptMessage("Aborted patch application...");
+	return;
+}
+
+
 // Give warning if this script was made for an earlier patch version.
 if (patchVersion.MajorVersion > scriptVersion.MajorVersion) {
 	continuePatch = ScriptQuestion(String.Format("The Patcher script is {0} major versions behind the patch you are attempting to use.\nIt is highly recommended that you download the most up-to-date patcher version at https://github.com/SolventMercury/HgPatcher/releases before attempting to proceed.\nContinue anyways?", patchVersion.MajorVersion - scriptVersion.MajorVersion));
@@ -3150,7 +3433,8 @@ CreateHollowGameObjects(objPath);
 CreateHollowRooms(roomPath);
 
 // And also for code
-CreateHollowCode(srcPath);
+List<string> overWriteData = new List<string>();
+overWriteData = CreateHollowCode(srcPath);
 
 // Next import assets
 
@@ -3170,12 +3454,13 @@ ImportSounds(soundPath);
 int sVersion;
 
 if (Data.GeneralInfo?.Major >= 2) {
-	sVersion = 2;
+	if (Data.GeneralInfo?.Major >= 3 || Data.GeneralInfo?.Minor >= 3) {
+		sVersion = 3;
+	} else {
+		sVersion = 2;
+	}
 } else {
 	sVersion = 1;
-}
-if (!((Data.GMS2_3 == false) && (Data.GMS2_3_1 == false) && (Data.GMS2_3_2 == false))) {
-	sVersion = 3;
 }
 
 // Get sVersion directly off of a sprite if we can
@@ -3202,7 +3487,7 @@ ImportMasks(maskPath);
 // Need to research that
 
 // Finally, import code!
-BasicCodeImport(srcPath);
+BasicCodeImport(srcPath, overWriteData);
 //if (!((Data.GMS2_3 == false) && (Data.GMS2_3_1 == false) && (Data.GMS2_3_2 == false))) {
 //    AdvancedCodeImport(srcPath);
 //} else {

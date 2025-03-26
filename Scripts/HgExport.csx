@@ -1,4 +1,10 @@
 // HgPatcher - a universal patching format for GML.
+// This script is used to generate a patch from two data.win files.
+// The patch is just a list of differences between the vanilla and modified data.win files.
+// No file needs to be open in UMT for this script to work.
+// NOTE: For games with external audiogroup files, this script will automatically search the folder that contains each data.win.
+// As such, if you've actually made changes to audiogroup files, you need to make sure each data.win is in its own folder,
+// And each one needs to come with its own copies of the appropriate audogroup files.
 // Made by https://github.com/SolventMercury with contributions from Jockeholm
 
 using System;
