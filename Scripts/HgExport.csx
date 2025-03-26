@@ -1186,7 +1186,7 @@ void AddCodeData (string assetName, UndertaleData VanillaData, UndertaleData Mod
 	UndertaleCode modCode = ModData.Code.ByName(assetName);
 	string outPath = Path.Combine(sourcePath, modCode.Name.Content + ".gml");
     try {
-		GlobalDecompileContext context = new GlobalDecompileContext(ModData, true);
+		GlobalDecompileContext context = new GlobalDecompileContext(ModData, false);
         File.WriteAllText(outPath, (modCode != null ? Decompiler.Decompile(modCode, context) : ""));
     }
     catch (Exception e)
@@ -1215,7 +1215,7 @@ void AddCodeThatGotErrors(List<string> splitStringsList, string pathToExtract) {
         return;
     }
 
-    ThreadLocal<GlobalDecompileContext> DECOMPILE_CONTEXT = new ThreadLocal<GlobalDecompileContext>(() => new GlobalDecompileContext(ModData, true));
+    ThreadLocal<GlobalDecompileContext> DECOMPILE_CONTEXT = new ThreadLocal<GlobalDecompileContext>(() => new GlobalDecompileContext(ModData, false));
 
 
     if (pathToExtract == null)
@@ -1923,8 +1923,8 @@ void CompareGameFiles(UndertaleData VanillaData, UndertaleData ModData) {
 
 bool CodeEquals(UndertaleCode codeA, UndertaleCode codeB, UndertaleData VanillaData, UndertaleData ModData) {
 	try {
-		GlobalDecompileContext contextA = new GlobalDecompileContext(VanillaData, true);
-		GlobalDecompileContext contextB = new GlobalDecompileContext(ModData    , true);
+		GlobalDecompileContext contextA = new GlobalDecompileContext(VanillaData, false);
+		GlobalDecompileContext contextB = new GlobalDecompileContext(ModData    , false);
 		
 		string decompA = (codeA != null ? Decompiler.Decompile(codeA, contextA) : "");
 		string decompB = (codeB != null ? Decompiler.Decompile(codeB, contextB) : "");
